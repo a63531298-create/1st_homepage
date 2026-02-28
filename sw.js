@@ -1,6 +1,6 @@
-const CACHE_NAME = 'ysol-cache-v1';
+const CACHE_NAME = 'ysol-cache-v2';
 const urlsToCache = [
-  './app.html',
+  './index.html',
   './manifest.json'
 ];
 
@@ -15,7 +15,6 @@ self.addEventListener('install', event => {
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then(response => {
-      // 캐시에 있으면 캐시된 걸 보여주고, 없으면 인터넷에서 가져옴
       return response || fetch(event.request);
     })
   );
