@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Y-Solution Mobile v1.8.23</title>
+    <title>Y-Solution Mobile v1.8.25</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -34,25 +34,27 @@
         .addr-text { font-size: 14px; font-weight: bold; color: #222; display: block; margin-bottom: 4px; line-height: 1.3; }
         .info-text { font-size: 11px; color: #666; margin-bottom: 4px; }
         
+        /* 🌟 긴 증상 전체 보기 스크롤 박스 및 메모 하이라이트 CSS */
+        .content-box { max-height: 65px; overflow-y: auto; font-size: 11px; color: #444; background: #f8f9fa; padding: 8px; border-radius: 6px; border-left: 3px solid #adb5bd; margin-top: 6px; white-space: pre-wrap; line-height: 1.4; }
+        .progress-memo { font-size: 11px; font-weight: bold; color: #856404; margin-top: 6px; background: #fff3cd; padding: 8px; border-radius: 6px; border-left: 3px solid #ffeeba; white-space: pre-wrap; line-height: 1.4; }
+        .archive-date-header { font-size: 14px; font-weight: bold; color: #111; padding: 10px 12px; background: #e9ecef; border-radius: 6px; margin: 15px 0 10px 0; border-left: 4px solid #6c757d; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
         .action-sheet-bg { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; align-items: flex-end; }
         .action-sheet { background: #fff; width: 100%; border-radius: 15px 15px 0 0; padding: 20px; box-sizing: border-box; animation: slideUp 0.3s ease-out; max-height: 90vh; overflow-y: auto; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .action-btn { width: 100%; padding: 12px; margin-bottom: 8px; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; color: #fff; }
 
-        /* FAB 스타일 */
         .fab { position: fixed; bottom: 80px; right: 20px; width: 56px; height: 56px; background: #111; color: #fee500; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1500; cursor: pointer; transition: 0.2s; }
         .fab:active { transform: scale(0.95); }
         .fab-menu { display: none; position: fixed; bottom: 145px; right: 25px; flex-direction: column; gap: 10px; z-index: 1499; }
         .fab-item { background: #fff; color: #333; padding: 10px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.2); cursor: pointer; border: 1px solid #eee; text-align: right; }
 
-        /* 모바일용 모달 스타일 */
         .modal-bg { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 4000; justify-content: center; align-items: center; }
         .modal-content { background: #fff; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; max-height: 85vh; overflow-y: auto; display: flex; flex-direction: column; box-sizing: border-box; }
         .local-input, .modal-content select, .modal-content input[type="date"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; margin-bottom: 8px; box-sizing: border-box; }
         .modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 15px; }
         .btn-modal { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; color: white; flex:1; }
 
-        /* 설정 탭 카드 스타일 */
         .setting-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .setting-card h4 { margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 2px solid #fee500; padding-bottom: 5px; display: inline-block; }
         .btn-setting { width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 13px; font-weight: bold; color: white; margin-bottom: 6px; cursor: pointer; }
@@ -90,7 +92,7 @@
             </div>
 
             <div id="archive-view" class="view-section">
-                <h3 style="margin:0 0 10px 0; color:#6c757d;">📦 타임라인 일정 보드</h3>
+                <h3 style="margin:0 0 10px 0; color:#6c757d;">📦 타임라인 일정 보드 <span id="arcTotalCount" style="float:right; color:#888; font-size:12px;">0건</span></h3>
                 <div id="listArchive"></div>
             </div>
 
@@ -159,6 +161,7 @@
             <input type="hidden" id="actionType">
             
             <button class="action-btn" style="background:#fee500; color:#111;" onclick="openNavi()">🚗 카카오맵/내비 길안내</button>
+            <button class="action-btn" style="background:#fd7e14;" onclick="addProgressMemo()">📝 진행 메모 추가/수정</button>
             <button class="action-btn" style="background:#17a2b8;" onclick="editItem()">✏️ 접수 내용 수정하기</button>
             <button class="action-btn" style="background:#28a745;" onclick="moveItem('today')">🎯 D-Day (오늘 일정으로)</button>
             <button class="action-btn" style="background:#007bff;" onclick="moveItem('tomorrow')">🚀 D-1 (내일 일정으로)</button>
@@ -182,7 +185,7 @@
                 <option value="유상">유상</option>
                 <option value="무상">무상</option>
             </select>
-            <textarea id="mContent" class="local-input" style="height:60px; resize:none;" placeholder="접수 내용 및 증상"></textarea>
+            <textarea id="mContent" class="local-input" style="height:90px; resize:none;" placeholder="접수 내용 및 증상"></textarea>
             <div class="modal-btns">
                 <button class="btn-modal" style="background:#6c757d;" onclick="closeManualModal()">취소</button>
                 <button class="btn-modal" style="background:#28a745;" onclick="saveManualModal()">저장</button>
@@ -204,9 +207,8 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec"; 
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.23' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.25' };
 
-        // 🌟 로컬 스토리지 매니저 (PC버전 동일 이식)
         const StorageManager = {
             getKey: (key) => APP_CONFIG.PREFIX + key,
             get: (key, defaultVal) => {
@@ -236,7 +238,7 @@
         function showLoader() { document.getElementById('loader').style.display = 'flex'; }
         function hideLoader() { document.getElementById('loader').style.display = 'none'; }
 
-        // 🌟 핵심 동기화 엔진 부활
+        // 🌟 백그라운드 자동 저장 엔진
         function save() {
             StorageManager.set('Todo', savedData);
             StorageManager.set('CnetTodo', cnetData);
@@ -261,7 +263,7 @@
                 if(json.FixedAddr) fixedStartAddr = json.FixedAddr;
                 if(json.DailyMemos) dailyMemos = json.DailyMemos;
                 
-                save(); // 받아온 데이터 로컬 갱신
+                save(); 
                 renderViews();
                 initMap();
                 renderSettings();
@@ -280,14 +282,12 @@
             renderViews(); updateMapMarkers();
         }
 
-        // 🌟 하단 탭 전환
         function switchTab(viewId, btnEl) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
             btnEl.classList.add('active');
             
-            // FAB 버튼 표시/숨김 제어 (일반/씨넷에서만 보임)
             const fab = document.getElementById('fabBtn');
             if(viewId === 'gen-view' || viewId === 'cnet-view') { fab.style.display = 'flex'; } 
             else { fab.style.display = 'none'; document.getElementById('fabMenu').style.display = 'none'; }
@@ -310,34 +310,31 @@
             menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
         }
 
-        // 🌟 화면 렌더링
+        // 🌟 통합 렌더링 함수
         function renderViews() {
             const kw = document.getElementById('globalSearchInput').value.trim().toLowerCase();
             
             const createListHTML = (dataArr, type) => {
                 let html = '';
-                let renderArr = type === 'archive' ? dataArr.slice().reverse() : dataArr;
-
-                renderArr.forEach((item, originalIdx) => {
+                dataArr.forEach((item, idx) => {
                     if (!item) return;
                     if (kw && !(item.addr||'').toLowerCase().includes(kw) && !(item.asNum||'').toLowerCase().includes(kw) && !(item.tel||'').includes(kw) && !(item.modelName||'').toLowerCase().includes(kw)) return;
                     
-                    let cssClass = type === 'general' ? 'general' : type === 'cnet' ? 'cnet' : 'archive';
-                    let dateBadge = type === 'archive' && item.completedDate ? `<span style="float:right; font-size:11px; background:#e9ecef; padding:2px 6px; border-radius:10px; color:#555;">📅 ${item.completedDate}</span>` : '';
+                    let cssClass = type === 'general' ? 'general' : 'cnet';
                     let phoneLink = item.tel ? `<a href="tel:${item.tel}" style="color:#007bff; text-decoration:none; font-weight:bold; padding:2px;" onclick="event.stopPropagation()">📞 ${item.tel}</a>` : '📞 없음';
-                    let memoHtml = (type === 'archive' && item.archiveMemo) ? `<div style="font-size:11px; color:#d63031; margin-top:6px; background:#fff0f0; padding:6px; border-radius:4px; border-left:3px solid #ff4757;">📝 ${item.archiveMemo}</div>` : '';
                     
-                    // 수동 추가시 모바일에서도 핀 누락 경고 표시
-                    let pinWarning = !item.lat && type !== 'archive' ? `<span style="background:#dc3545; color:white; font-size:10px; padding:2px 4px; border-radius:4px; margin-left:4px;">⚠️핀누락</span>` : '';
-
-                    let actualIdx = type === 'archive' ? (dataArr.length - 1 - originalIdx) : originalIdx;
+                    // 🌟 긴 증상 및 진행 메모 표시 개선
+                    let contentHtml = `<div class="content-box">📄 증상: ${escapeHTML(item.content || '내용 없음')}</div>`;
+                    let memoHtml = item.memo ? `<div class="progress-memo">💡 [진행 메모] ${escapeHTML(item.memo)}</div>` : '';
+                    let pinWarning = !item.lat ? `<span style="background:#dc3545; color:white; font-size:10px; padding:2px 4px; border-radius:4px; margin-left:4px;">⚠️핀누락</span>` : '';
 
                     html += `
-                        <div class="list-item ${cssClass}" onclick="openActionSheet('${type}', ${actualIdx}, '${item.asNum}')">
-                            <span class="as-num">${item.source==='cnet'?'[씨넷]':'[일반]'} ${item.asNum} ${pinWarning} ${dateBadge}</span>
+                        <div class="list-item ${cssClass}" onclick="openActionSheet('${type}', ${idx}, '${item.asNum}')">
+                            <span class="as-num">${type==='cnet'?'[씨넷]':'[일반]'} ${item.asNum} ${pinWarning}</span>
                             <span class="addr-text">${item.addr}</span>
                             <div class="info-text">👤 ${item.name} | ${phoneLink}</div>
-                            <div class="info-text" style="color:#444;">🏷️ ${item.modelName} | 증상: ${item.content.substring(0, 30)}...</div>
+                            <div class="info-text" style="color:#444;">🏷️ ${item.modelName}</div>
+                            ${contentHtml}
                             ${memoHtml}
                         </div>
                     `;
@@ -351,10 +348,59 @@
             document.getElementById('listCnet').innerHTML = createListHTML(cnetData, 'cnet');
             document.getElementById('cnetCount').innerText = cnetData.length + "건";
 
-            document.getElementById('listArchive').innerHTML = createListHTML(archiveData, 'archive');
+            renderArchive(); // 🌟 일정 탭 분리 렌더링
         }
 
-        // 🌟 액션 시트 제어
+        // 🌟 일정(Archive) 탭: 날짜별 그룹화 렌더링
+        function renderArchive() {
+            let html = '';
+            let groups = {};
+            let kw = document.getElementById('globalSearchInput').value.trim().toLowerCase();
+            
+            archiveData.forEach((item, idx) => {
+                if (!item) return;
+                if (kw && !(item.addr||'').toLowerCase().includes(kw) && !(item.asNum||'').toLowerCase().includes(kw) && !(item.tel||'').includes(kw) && !(item.modelName||'').toLowerCase().includes(kw)) return;
+                
+                let d = item.completedDate || '날짜 미상';
+                if (!groups[d]) groups[d] = [];
+                groups[d].push({item, idx});
+            });
+            
+            let sortedDates = Object.keys(groups).sort((a,b) => b.localeCompare(a));
+            let todayObj = new Date(); let offset = todayObj.getTimezoneOffset() * 60000;
+            let todayStr = new Date(todayObj.getTime() - offset).toISOString().split('T')[0];
+            let tmrwObj = new Date(todayObj.getTime() + 86400000);
+            let tmrwStr = new Date(tmrwObj.getTime() - offset).toISOString().split('T')[0];
+            
+            sortedDates.forEach(date => {
+                let dateTitle = date === todayStr ? `🎯 D-Day (오늘)` : date === tmrwStr ? `🚀 D-1 (내일)` : `✅ 완료됨 (${date})`;
+                
+                html += `<div class="archive-date-header"><span>${dateTitle}</span> <span style="color:#0056b3;">${groups[date].length}건</span></div>`;
+                
+                groups[date].slice().reverse().forEach(obj => {
+                    let item = obj.item;
+                    let phoneLink = item.tel ? `<a href="tel:${item.tel}" style="color:#007bff; text-decoration:none; font-weight:bold; padding:2px;" onclick="event.stopPropagation()">📞 ${item.tel}</a>` : '📞 없음';
+                    let contentHtml = `<div class="content-box">📄 증상: ${escapeHTML(item.content || '내용 없음')}</div>`;
+                    let memoHtml = item.archiveMemo ? `<div class="progress-memo" style="border-left-color:#ff4757; background:#fff0f0; color:#d63031;">📝 [완료 메모] ${escapeHTML(item.archiveMemo)}</div>` : '';
+                    let srcTag = item.source === 'cnet' ? '<span style="color:#ff4757;">[씨넷]</span>' : '<span style="color:#0056b3;">[일반]</span>';
+                    
+                    html += `
+                        <div class="list-item archive" onclick="openActionSheet('archive', ${obj.idx}, '${item.asNum}')">
+                            <span class="as-num">${srcTag} ${item.asNum}</span>
+                            <span class="addr-text">${item.addr}</span>
+                            <div class="info-text">👤 ${item.name} | ${phoneLink}</div>
+                            <div class="info-text" style="color:#444;">🏷️ ${item.modelName}</div>
+                            ${contentHtml}
+                            ${memoHtml}
+                        </div>
+                    `;
+                });
+            });
+            
+            document.getElementById('listArchive').innerHTML = html;
+            document.getElementById('arcTotalCount').innerText = archiveData.length + "건";
+        }
+
         function openActionSheet(type, idx, asNum) {
             document.getElementById('actionTitle').innerText = "작업 선택 [" + asNum + "]";
             document.getElementById('actionType').value = type;
@@ -368,25 +414,41 @@
             let item = type === 'general' ? savedData[idx] : type === 'cnet' ? cnetData[idx] : archiveData[idx];
             if(item && item.lat && item.lng) {
                 window.open(`https://map.kakao.com/link/to/${encodeURIComponent(item.searchTarget || item.addr)},${item.lat},${item.lng}`, '_blank');
-            } else { alert('해당 주소의 핀(좌표)이 없습니다. 설정 탭에서 현장명 번역을 추가해주세요.'); }
+            } else { alert('해당 주소의 핀(좌표)이 없습니다.'); }
             closeActionSheet();
         }
 
-        // 🌟 모바일 수정 기능 연결
+        // 🌟 진행 메모 추가/수정 함수
+        function addProgressMemo() {
+            let type = document.getElementById('actionType').value; let idx = parseInt(document.getElementById('actionIdx').value);
+            let dataArr = type === 'general' ? savedData : type === 'cnet' ? cnetData : archiveData;
+            let item = dataArr[idx];
+            
+            let currentMemo = type === 'archive' ? (item.archiveMemo || '') : (item.memo || '');
+            let memo = prompt("📝 현장 진행 메모를 입력하세요 (대기열에 유지됩니다):", currentMemo);
+            
+            if (memo !== null) {
+                if(type === 'archive') item.archiveMemo = memo;
+                else item.memo = memo;
+                save(); renderViews();
+            }
+            closeActionSheet();
+        }
+
         function editItem() {
             let type = document.getElementById('actionType').value; let idx = parseInt(document.getElementById('actionIdx').value);
-            closeActionSheet();
-            openManualModal(type, idx);
+            closeActionSheet(); openManualModal(type, idx);
         }
 
         function completeItemWithMemo() {
             let type = document.getElementById('actionType').value; let idx = parseInt(document.getElementById('actionIdx').value);
             let dataArr = type === 'general' ? savedData : type === 'cnet' ? cnetData : archiveData;
             
-            let memo = prompt("완료 메모를 입력하세요 (현장 조치사항 등)\n*입력하지 않고 확인만 누르면 메모 없이 완료됩니다.");
-            if (memo === null) return;
-
             let item = dataArr.splice(idx, 1)[0];
+            let currentMemo = item.memo || '';
+            let memo = prompt("✅ 작업 완료 메모를 입력하세요 (일정 탭으로 이동됩니다):", currentMemo);
+            if (memo === null) return; // 취소시 롤백안됨 (위치 옮김)
+            
             let targetDate = new Date(); let offset = targetDate.getTimezoneOffset() * 60000;
             item.completedDate = new Date(targetDate.getTime() - offset).toISOString().split('T')[0];
             item.source = type; item.archiveMemo = memo;
@@ -416,7 +478,6 @@
             closeActionSheet(); save(); renderViews();
         }
 
-        // 🌟 모바일 수동 등록 / WEB 추출 / 수정 모달 로직
         function openManualModal(type = 'general', idx = -1) {
             document.getElementById('fabMenu').style.display = 'none';
             currentEditIdx = idx; document.getElementById('mType').value = type;
@@ -457,6 +518,7 @@
             if (currentEditIdx > -1) { 
                 let tArr = type === 'general' ? savedData : type === 'cnet' ? cnetData : archiveData; 
                 info.memo = tArr[currentEditIdx].memo || tArr[currentEditIdx].archiveMemo || ""; 
+                if(type === 'archive') { info.completedDate = tArr[currentEditIdx].completedDate; info.archiveMemo = info.memo; delete info.memo; }
                 tArr[currentEditIdx] = info; 
                 SearchQueue.add(info, type, true, currentEditIdx); 
             } else { SearchQueue.add(info, type); }
@@ -481,7 +543,6 @@
                 info.tel = ext("연락처") || ext("대표번호");
                 info.modelName = ext("모델명") || ext("품목"); info.costType = ext("유,무상구분") || ext("비용구분");
                 info.asNum = ext("접수번호") || ext("AS번호") || "WEB-" + Date.now().toString().slice(-6) + Math.floor(Math.random()*10);
-                
                 info.content = (ext("접수내용") || ext("증상")) + (ext("특이사항") ? "\n[특이사항] "+ext("특이사항") : "");
                 
                 if (info.addr) SearchQueue.add(info, 'general');
@@ -489,7 +550,6 @@
             closeWebModal(); alert("추출 및 주소 변환이 백그라운드에서 진행됩니다.");
         }
 
-        // 🌟 지도 및 검색 엔진 (PC버전 동일 이식)
         const SearchQueue = {
             queue: [], isProcessing: false,
             add: function(info, type, isEdit=false, oldIdx=-1) {
@@ -525,7 +585,6 @@
             save(); setTimeout(() => SearchQueue.processNext(), 200);
         }
 
-        // 🌟 설정 탭 (메모, 거점, 사전, 엑셀, 백업) 렌더링 및 동작 함수
         function renderSettings() {
             let today = new Date(); let offset = today.getTimezoneOffset() * 60000;
             let todayStr = new Date(today.getTime() - offset).toISOString().split('T')[0];
@@ -580,7 +639,6 @@
             alert("✨ AI 스케줄링 경로가 복사되었습니다!");
         }
 
-        // 🌟 모바일 엑셀 및 JSON 내보내기/불러오기 기능
         function exportToExcel() {
             if(typeof XLSX === 'undefined') return alert("라이브러리 로딩 중입니다.");
             let wb = XLSX.utils.book_new();
