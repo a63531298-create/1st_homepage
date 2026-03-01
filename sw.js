@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ysol-cache-v2';
+const CACHE_NAME = 'ysol-cache-v3';
 const urlsToCache = [
   './index.html',
   './manifest.json'
@@ -19,3 +19,4 @@ self.addEventListener('fetch', event => {
     })
   );
 });
+
