@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>Y-Solution v1.8.22 (Cloud Master - Final)</title>
+    <title>Y-Solution v1.8.26 (Cloud Master - UI Fix)</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -76,32 +76,13 @@
         .warning-badge { background: #dc3545; color: white; padding: 2px 5px; border-radius: 3px; font-size: 9px; margin-left: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.2); animation: blink 2s infinite; }
         @keyframes blink { 0% {opacity: 1;} 50% {opacity: 0.6;} 100% {opacity: 1;} }
 
-        #routeBox { 
-            position: absolute; top: 10px; right: 10px; width: 280px; 
-            background: rgba(255,255,255,0.95); border-radius: 10px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000; padding: 10px;
-            transition: transform 0.3s ease-in-out; transform: translateX(0); 
-        }
+        #routeBox { position: absolute; top: 10px; right: 10px; width: 280px; background: rgba(255,255,255,0.95); border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000; padding: 10px; transition: transform 0.3s ease-in-out; transform: translateX(0); }
         #routeBox.hidden { transform: translateX(calc(100% + 15px)); }
-        .route-toggle-btn {
-            position: absolute; left: -25px; top: 15px; width: 25px; height: 40px;
-            background: #fee500; color: #111; border: 1px solid #ccc; border-right: none;
-            border-radius: 6px 0 0 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;
-        }
+        .route-toggle-btn { position: absolute; left: -25px; top: 15px; width: 25px; height: 40px; background: #fee500; color: #111; border: 1px solid #ccc; border-right: none; border-radius: 6px 0 0 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
 
-        #memoBox { 
-            position: absolute; top: 10px; left: 10px; width: 260px; height: 320px;
-            background: rgba(255,255,255,0.95); border-radius: 10px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000; padding: 10px;
-            transition: transform 0.3s ease-in-out; transform: translateX(0); 
-            display: flex; flex-direction: column;
-        }
+        #memoBox { position: absolute; top: 10px; left: 10px; width: 260px; height: 320px; background: rgba(255,255,255,0.95); border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000; padding: 10px; transition: transform 0.3s ease-in-out; transform: translateX(0); display: flex; flex-direction: column; }
         #memoBox.hidden { transform: translateX(calc(-100% - 15px)); }
-        .memo-toggle-btn {
-            position: absolute; right: -25px; top: 15px; width: 25px; height: 40px;
-            background: #28a745; color: #fff; border: 1px solid #ccc; border-left: none;
-            border-radius: 0 6px 6px 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;
-        }
+        .memo-toggle-btn { position: absolute; right: -25px; top: 15px; width: 25px; height: 40px; background: #28a745; color: #fff; border: 1px solid #ccc; border-left: none; border-radius: 0 6px 6px 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
         .memo-archive-item { background: #f8f9fa; border: 1px solid #ddd; padding: 6px; border-radius: 6px; margin-bottom: 6px; font-size: 11px; color: #444; white-space: pre-wrap; word-break: break-all; }
 
         textarea.route-ta { width: 100%; height: 100px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px; box-sizing: border-box; padding: 6px; resize: none; font-family: 'Consolas', monospace; }
@@ -169,7 +150,7 @@
                 <div id="memoBox">
                     <button class="memo-toggle-btn" id="memoToggleBtn" onclick="toggleMemoBox()">◀</button>
                     <strong style="color:#111; font-size:12px; margin-bottom:4px; display:block;">📝 일일 메모장 <span id="memoDateStr" style="color:#0056b3;"></span></strong>
-                    <textarea id="memoToday" class="route-ta" style="height: 90px; flex:none; background:#fffdf2; border:1px solid #fee500;" oninput="saveMemoToday()" placeholder="오늘의 메모를 자유롭게 입력하세요... (자동저장)"></textarea>
+                    <textarea id="memoToday" class="route-ta" style="height: 90px; flex:none; background:#fffdf2; border:1px solid #fee500;" oninput="saveMemoToday()" onfocus="isTyping=true;" onblur="isTyping=false;" placeholder="오늘의 메모를 자유롭게 입력하세요... (자동저장)"></textarea>
                     <strong style="color:#555; font-size:11px; margin-top:6px; padding-bottom:4px; border-bottom:1px solid #ddd; display:block;">📥 과거 메모 보관함</strong>
                     <div id="memoArchiveList" style="flex:1; overflow-y:auto; margin-top:4px; padding-right:4px;"></div>
                 </div>
@@ -182,7 +163,7 @@
                     
                     <strong style="color:#111; font-size:11px; display:block; border-top:1px solid #ddd; padding-top:6px; margin-top:2px;">🏠 고정 거점 및 클라우드 연동</strong>
                     <div style="display:flex; gap:4px; margin-top:2px;">
-                        <input type="text" id="fixedAddrInput" class="local-input" style="flex:1; margin-bottom:0;" placeholder="출발지 주소 입력">
+                        <input type="text" id="fixedAddrInput" class="local-input" style="flex:1; margin-bottom:0;" placeholder="출발지 주소 입력" onfocus="isTyping=true;" onblur="isTyping=false;">
                         <button class="btn-main" style="background:#dc3545; flex:none; padding:4px 8px;" onclick="changeFixedAddr()">적용</button>
                     </div>
                     <div style="display:flex; gap:4px; margin-top:4px;">
@@ -292,8 +273,8 @@
             <p style="font-size:11px; color:#555; margin-top:-10px; margin-bottom:10px;">엑셀의 복잡한 주소나 누락 핀을 위해 주소의 일부분을 짝지어두세요. <b>추가 즉시 핀 누락 항목들이 지도에 소급 적용됩니다!</b></p>
             <div id="aliasListArea" style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 8px; margin-bottom: 10px; border-radius: 4px; background: #f9f9f9; font-size: 11px;"></div>
             <div style="display:flex; gap:6px; margin-bottom: 15px;">
-                <input type="text" id="aliasKeyInput" class="local-input" placeholder="주소 일부분 (예: 고덕국제1로 50)" style="flex:1;">
-                <input type="text" id="aliasValueInput" class="local-input" placeholder="실제 검색 주소 (예: 고덕동 2619-1)" style="flex:1;">
+                <input type="text" id="aliasKeyInput" class="local-input" placeholder="주소 일부분 (예: 고덕국제1로 50)" style="flex:1;" onfocus="isTyping=true;" onblur="isTyping=false;">
+                <input type="text" id="aliasValueInput" class="local-input" placeholder="실제 검색 주소 (예: 고덕동 2619-1)" style="flex:1;" onfocus="isTyping=true;" onblur="isTyping=false;">
                 <button class="btn-main" style="background:#28a745; flex:none; padding:6px 12px;" onclick="addAlias()">추가</button>
             </div>
             <div class="modal-btns">
@@ -319,10 +300,12 @@
     </div>
 
     <script>
-        // 🌟 완벽하게 삽입된 구글 앱스 스크립트(GAS) 발급 API URL
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec";
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.26' };
 
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.22' };
+        // 🌟 스크롤 튕김 & 포커스 증발 방지용 전역 상태 변수
+        let isDragging = false;
+        let isTyping = false; 
 
         const StorageManager = {
             getKey: (key) => APP_CONFIG.PREFIX + key,
@@ -381,7 +364,6 @@
                     if (json.FixedAddr) fixedStartAddr = json.FixedAddr;
                     if (json.DailyMemos) dailyMemos = json.DailyMemos;
                     
-                    // 로컬 스토리지 업데이트
                     StorageManager.set('Todo', savedData);
                     StorageManager.set('CnetTodo', cnetData);
                     StorageManager.set('Archive', archiveData);
@@ -394,10 +376,7 @@
         }
 
         async function saveToCloud(isManual = false) {
-            if (!GAS_API_URL || GAS_API_URL === "YOUR_WEB_APP_URL_HERE") {
-                if(isManual) alert("Google Apps Script 웹 앱 URL이 필요합니다.");
-                return;
-            }
+            if (!GAS_API_URL || GAS_API_URL === "YOUR_WEB_APP_URL_HERE") return;
             if (isManual) showLoader();
             
             let payload = {
@@ -406,10 +385,7 @@
             };
             
             try {
-                await fetch(GAS_API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
+                await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify(payload) });
                 if(isManual) alert("☁️ 현재 PC 데이터가 클라우드에 완벽하게 덮어씌워졌습니다!");
             } catch(e) {
                 if(isManual) alert("⚠️ 통신 에러: 네트워크 상태를 확인해주세요.");
@@ -417,8 +393,6 @@
             if(isManual) hideLoader();
         }
 
-        // 🌟 v1.8.22: 심장(save) 함수 완벽 복구
-        // 브라우저에 즉시 저장 후, 2초 뒤 클라우드에 조용히 동기화
         function save() {
             StorageManager.set('Todo', savedData);
             StorageManager.set('CnetTodo', cnetData);
@@ -428,9 +402,7 @@
             StorageManager.set('DailyMemos', dailyMemos);
 
             clearTimeout(cloudSaveTimer);
-            cloudSaveTimer = setTimeout(() => {
-                saveToCloud(false);
-            }, 2000);
+            cloudSaveTimer = setTimeout(() => { saveToCloud(false); }, 2000);
         }
 
         const ReportManager = {
@@ -496,7 +468,7 @@
                 if (!this.isProcessing) this.processNext();
             },
             processNext: function() {
-                if (this.queue.length === 0) { this.isProcessing = false; debouncedRender(); ReportManager.showIfAny(); return; }
+                if (this.queue.length === 0) { this.isProcessing = false; render(); ReportManager.showIfAny(); return; }
                 this.isProcessing = true; const task = this.queue.shift();
                 
                 let originalTarget = task.info.searchTarget || task.info.addr; let target = originalTarget;
@@ -526,7 +498,7 @@
             info.lat = lat; info.lng = lng; info.searchAddr = searchAddr;
             let targetArr = type === 'general' ? savedData : cnetData;
             if (isEdit && oldIdx > -1) { targetArr[oldIdx] = info; } else { targetArr.unshift(info); }
-            if (shouldSave) save(); // 이제 save()가 클라우드로 정상 연동됩니다
+            if (shouldSave) save(); 
         }
 
         function getLocalDateString(dateObj) {
@@ -582,7 +554,9 @@
         function renderMemos() {
             let todayStr = getLocalDateString(new Date());
             document.getElementById('memoDateStr').innerText = `(${todayStr})`;
-            document.getElementById('memoToday').value = dailyMemos[todayStr] || "";
+            
+            // 타이핑 중이 아닐 때만 value 업데이트 (커서 증발 방지)
+            if(!isTyping) { document.getElementById('memoToday').value = dailyMemos[todayStr] || ""; }
             
             const archiveArea = document.getElementById('memoArchiveList');
             archiveArea.innerHTML = '';
@@ -600,9 +574,8 @@
 
         function saveMemoToday() {
             let todayStr = getLocalDateString(new Date());
-            if (document.getElementById('memoDateStr').innerText !== `(${todayStr})`) { renderMemos(); }
             dailyMemos[todayStr] = document.getElementById('memoToday').value;
-            save();
+            save(); // render() 호출 안함 (포커스 유지)
         }
 
         window.onload = async function() {
@@ -641,14 +614,35 @@
             });
         }
 
-        function debouncedRender() { clearTimeout(renderDebounceTimer); renderDebounceTimer = setTimeout(render, 150); }
+        function debouncedRender() { 
+            if(isDragging || isTyping) return; // 타이핑/드래그 중엔 방해 안함
+            clearTimeout(renderDebounceTimer); renderDebounceTimer = setTimeout(render, 150); 
+        }
 
+        // 🌟 스크롤 메모리 장착 (v1.8.26 Fix)
         function render() { 
+            if(isDragging) return; // 드래그 중 화면 초기화 방지
+
+            // 1. 현재 스크롤 위치 기록
+            let sGen = document.getElementById('listGen') ? document.getElementById('listGen').scrollTop : 0;
+            let sCnet = document.getElementById('listCnet') ? document.getElementById('listCnet').scrollTop : 0;
+            let sArc = document.getElementById('archiveScrollArea') ? document.getElementById('archiveScrollArea').scrollLeft : 0;
+
+            // 2. 렌더링
             document.getElementById('genCountBadge').innerText = `총 ${savedData.length}건`;
             document.getElementById('cnetCountBadge').innerText = `총 ${cnetData.length}건`;
             renderMemos(); 
             renderList('general'); renderList('cnet'); renderArchiveList(); updateMapMarkers(); updateSummary(); 
+
+            // 3. 스크롤 강제 복구
+            if(document.getElementById('listGen')) document.getElementById('listGen').scrollTop = sGen;
+            if(document.getElementById('listCnet')) document.getElementById('listCnet').scrollTop = sCnet;
+            if(document.getElementById('archiveScrollArea')) document.getElementById('archiveScrollArea').scrollLeft = sArc;
         }
+
+        // 🌟 드래그 위치 이동 (v1.8.26 Fix)
+        window.enableDrag = function(btn) { const item = btn.closest('.archive-item') || btn.closest('.list-item'); if (item) item.setAttribute('draggable', 'true'); };
+        window.disableDrag = function(btn) { const item = btn.closest('.archive-item') || btn.closest('.list-item'); if (item) item.removeAttribute('draggable'); };
 
         function renderList(type) {
             const isGen = type === 'general'; const dataArr = isGen ? savedData : cnetData; const selArr = isGen ? selectedGen : selectedCnet;
@@ -659,21 +653,12 @@
             let sortedIdx = [...selArr]; let matchedIdx = []; let otherIdx = [];   
             dataArr.forEach((item, i) => { 
                 if (!item) return; 
-                
-                let addrStr = String(item.addr || '').toLowerCase();
-                let asNumStr = String(item.asNum || '').toLowerCase();
-                let nameStr = String(item.name || '').toLowerCase();
-                let telStr = String(item.tel || '').replace(/-/g, '');
+                let addrStr = String(item.addr || '').toLowerCase(); let asNumStr = String(item.asNum || '').toLowerCase();
+                let nameStr = String(item.name || '').toLowerCase(); let telStr = String(item.tel || '').replace(/-/g, '');
                 let modelStr = String(item.modelName || '').toLowerCase();
 
                 if (!selArr.includes(i)) {
-                    if (searchKeyword && (
-                        addrStr.includes(searchKeyword) || 
-                        asNumStr.includes(searchKeyword) || 
-                        nameStr.includes(searchKeyword) ||
-                        telStr.includes(searchKeyword.replace(/-/g,'')) ||
-                        modelStr.includes(searchKeyword)
-                    )) { matchedIdx.push(i); } 
+                    if (searchKeyword && (addrStr.includes(searchKeyword) || asNumStr.includes(searchKeyword) || nameStr.includes(searchKeyword) || telStr.includes(searchKeyword.replace(/-/g,'')) || modelStr.includes(searchKeyword))) { matchedIdx.push(i); } 
                     else { otherIdx.push(i); }
                 } 
             });
@@ -692,12 +677,9 @@
             listEl.innerHTML = ''; const fragment = document.createDocumentFragment();
 
             finalIdx.forEach(idx => {
-                const item = dataArr[idx]; 
-                if (!item) return; 
-                
+                const item = dataArr[idx]; if (!item) return; 
                 const sPos = selArr.indexOf(idx); const isSelected = sPos > -1; 
                 const isSearched = !isSelected && searchKeyword && matchedIdx.includes(idx); 
-                
                 if (searchKeyword && !isSelected && !isSearched) return;
 
                 const div = document.createElement('div');
@@ -713,8 +695,8 @@
                     moveBtns = `<span class="move-btn" onclick="moveUp('${type}', ${idx}, event)">🔼</span><span class="move-btn" onclick="moveDown('${type}', ${idx}, event)">🔽</span>`;
                     dragHandle = `<span class="drag-handle" onmousedown="enableDrag(this)" onmouseup="disableDrag(this)" onmouseleave="disableDrag(this)">⣿</span>`;
                     div.dataset.spos = sPos; 
-                    div.ondragstart = function(e) { e.dataTransfer.setData('text/plain', JSON.stringify({ type: type, pos: this.dataset.spos })); this.style.opacity = '0.4'; };
-                    div.ondragend = function(e) { this.style.opacity = '1'; this.removeAttribute('draggable'); };
+                    div.ondragstart = function(e) { isDragging = true; e.dataTransfer.setData('text/plain', JSON.stringify({ type: type, pos: this.dataset.spos })); this.style.opacity = '0.4'; };
+                    div.ondragend = function(e) { isDragging = false; this.style.opacity = '1'; this.removeAttribute('draggable'); };
                     div.ondragover = function(e) { e.preventDefault(); this.style.borderTop = '3px dashed #28a745'; };
                     div.ondragleave = function(e) { this.style.borderTop = ''; };
                     div.ondrop = function(e) {
@@ -722,7 +704,11 @@
                         try {
                             const data = JSON.parse(e.dataTransfer.getData('text/plain')); if (data.type !== type) return; 
                             const draggedPos = parseInt(data.pos, 10); const targetPos = parseInt(this.dataset.spos, 10);
-                            if (!isNaN(draggedPos) && draggedPos !== targetPos) { const movedItem = selArr.splice(draggedPos, 1)[0]; selArr.splice(targetPos, 0, movedItem); save(); render(); }
+                            if (!isNaN(draggedPos) && draggedPos !== targetPos) { 
+                                const movedItem = selArr.splice(draggedPos, 1)[0]; 
+                                selArr.splice(targetPos, 0, movedItem); 
+                                isDragging = false; save(); render(); // 드래그 완료시 스크롤 복구하며 렌더링
+                            }
                         } catch(err) {}
                     };
                 }
@@ -736,16 +722,13 @@
                     <span class="addr-text">${escapeHTML(item.addr)}</span>
                     <div style="font-size:10px; color:#555; margin-top:2px;">👤 ${escapeHTML(item.name||'미상')} | 📞 ${escapeHTML(item.tel||'없음')} | 🏷️ ${escapeHTML(item.modelName||'없음')}</div>
                     <div class="content-box">📄 ${escapeHTML(item.content||'내용 없음')}</div>
-                    <input type="text" class="memo-input" placeholder="수동 메모..." value="${escapeHTML(item.memo||'')}" onclick="event.stopPropagation()" onchange="saveMemo('${type}', ${idx}, this.value)">
+                    <input type="text" class="memo-input" placeholder="수동 메모..." value="${escapeHTML(item.memo||'')}" onclick="event.stopPropagation()" onfocus="isTyping=true;" onblur="isTyping=false;" onchange="saveMemo('${type}', ${idx}, this.value)">
                     <button class="edit-btn" onclick="event.stopPropagation(); openManualModal('${type}', ${idx});">✏️ 수정</button>
                 `;
                 fragment.appendChild(div);
             });
             listEl.appendChild(fragment);
         }
-
-        window.enableDrag = function(btn) { const item = btn.closest('.archive-item') || btn.closest('.list-item'); if (item) item.setAttribute('draggable', 'true'); };
-        window.disableDrag = function(btn) { const item = btn.closest('.archive-item') || btn.closest('.list-item'); if (item) item.removeAttribute('draggable'); };
 
         function moveArchiveUp(idx) { if (idx < archiveData.length - 1 && archiveData[idx].completedDate === archiveData[idx+1].completedDate) { [archiveData[idx], archiveData[idx+1]] = [archiveData[idx+1], archiveData[idx]]; save(); render(); } }
         function moveArchiveDown(idx) { if (idx > 0 && archiveData[idx].completedDate === archiveData[idx-1].completedDate) { [archiveData[idx], archiveData[idx-1]] = [archiveData[idx-1], archiveData[idx]]; save(); render(); } }
@@ -842,8 +825,8 @@
                 
                 arcGroups[dateKey].slice().reverse().forEach(obj => {
                     const d = document.createElement('div'); d.className = 'archive-item';
-                    d.ondragstart = function(e) { e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'archive', idx: obj.idx })); this.style.opacity = '0.4'; };
-                    d.ondragend = function(e) { this.style.opacity = '1'; this.removeAttribute('draggable'); };
+                    d.ondragstart = function(e) { isDragging = true; e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'archive', idx: obj.idx })); this.style.opacity = '0.4'; };
+                    d.ondragend = function(e) { isDragging = false; this.style.opacity = '1'; this.removeAttribute('draggable'); };
 
                     let diffText = getRealTimeDiff(obj.item);
                     let costBadge = obj.item.costType === '유상' ? `<span style="background:#ff5252; color:white; font-size:9px; padding:2px 4px; border-radius:3px; margin-left:4px;">유상</span>` : obj.item.costType === '무상' ? `<span style="background:#28a745; color:white; font-size:9px; padding:2px 4px; border-radius:3px; margin-left:4px;">무상</span>` : '';
@@ -860,7 +843,7 @@
                         <div style="font-size:10px; color:#555; margin-top:1px;">👤 ${escapeHTML(obj.item.name||'미상')} | 📞 ${escapeHTML(obj.item.tel||'없음')} | 🏷️ ${escapeHTML(obj.item.modelName||'없음')}</div>
                         <div class="content-box">📄 ${escapeHTML(obj.item.content||'내용 없음')}</div>
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
-                            <input type="text" class="memo-input" style="flex:1; margin-right:4px;" placeholder="완료 메모..." value="${escapeHTML(obj.item.archiveMemo || '')}" onchange="saveArchiveMemo(${obj.idx}, this.value)">
+                            <input type="text" class="memo-input" style="flex:1; margin-right:4px;" placeholder="완료 메모..." value="${escapeHTML(obj.item.archiveMemo || '')}" onfocus="isTyping=true;" onblur="isTyping=false;" onchange="saveArchiveMemo(${obj.idx}, this.value)">
                             <div style="display:flex; gap:2px;">
                                 <button class="arc-action-btn" title="위로" onclick="moveArchiveUp(${obj.idx})">🔼</button>
                                 <button class="arc-action-btn" title="아래로" onclick="moveArchiveDown(${obj.idx})">🔽</button>
@@ -997,13 +980,7 @@
             } else { 
                 dataArr.forEach((item, i) => { 
                     if (!item) return;
-                    if (!selArr.includes(i) && (
-                        String(item.addr||'').toLowerCase().includes(kw) || 
-                        String(item.asNum||'').toLowerCase().includes(kw) || 
-                        String(item.name||'').toLowerCase().includes(kw) ||
-                        String(item.tel||'').replace(/-/g,'').includes(kw.replace(/-/g,'')) ||
-                        String(item.modelName||'').toLowerCase().includes(kw)
-                    )) { selArr.push(i); } 
+                    if (!selArr.includes(i) && (String(item.addr||'').toLowerCase().includes(kw) || String(item.asNum||'').toLowerCase().includes(kw) || String(item.name||'').toLowerCase().includes(kw) || String(item.tel||'').replace(/-/g,'').includes(kw.replace(/-/g,'')) || String(item.modelName||'').toLowerCase().includes(kw))) { selArr.push(i); } 
                 }); 
             }
             save(); render();
@@ -1011,7 +988,10 @@
 
         function resetSelection(type) { if (type === 'general') selectedGen = []; else selectedCnet = []; save(); render(); }
         function deleteSelected(type) { if (confirm("선택 항목을 영구 삭제하시겠습니까?")) { if (type === 'general') { savedData = savedData.filter((_, i) => !selectedGen.includes(i)); selectedGen = []; } else { cnetData = cnetData.filter((_, i) => !selectedCnet.includes(i)); selectedCnet = []; } save(); render(); } }
+        
+        // 🌟 타이핑 중 화면 초기화 방지를 위해 render() 호출 제거
         function saveMemo(type, idx, val) { if (type === 'general') savedData[idx].memo = val; else cnetData[idx].memo = val; save(); }
+        function saveArchiveMemo(idx, val) { archiveData[idx].archiveMemo = val; save(); }
         
         function moveToTimeline(type, dayType) {
             let selArr = type === 'general' ? selectedGen : selectedCnet; let dataArr = type === 'general' ? savedData : cnetData;
@@ -1029,8 +1009,7 @@
 
         function restoreItem(idx) { if (confirm("이 항목을 다시 대기열로 복구하시겠습니까?")) { let item = archiveData.splice(idx, 1)[0]; if (item.source === 'cnet') cnetData.push(item); else savedData.push(item); save(); render(); } }
         function deleteArchiveItem(idx) { if (confirm("영구 삭제하시겠습니까?")) { archiveData.splice(idx, 1); save(); render(); } }
-        function saveArchiveMemo(idx, val) { archiveData[idx].archiveMemo = val; save(); }
-
+        
         function updateSummary() {
             if (!fixedStartAddr) { document.getElementById('routeText').value = "🏠 거점을 설정해 주세요."; return; }
             if (selectedGen.length === 0 && selectedCnet.length === 0) { document.getElementById('routeText').value = "항목을 선택하세요."; return; }
@@ -1044,7 +1023,6 @@
             route += `[도착] ${fixedStartAddr}`; document.getElementById('routeText').value = route;
         }
 
-        // 🌟 시스템 원상복구용 JSON 내보내기 (기존 유지)
         function backupData() {
             const data = {
                 Todo: savedData, CnetTodo: cnetData, Archive: archiveData,
@@ -1058,7 +1036,6 @@
             a.click(); URL.revokeObjectURL(url);
         }
 
-        // 🌟 v1.8.22: 엑셀 시트 양식 내보내기 (신규 기능)
         function exportToExcel() {
             if(typeof XLSX === 'undefined') return alert("엑셀 내보내기 라이브러리를 로드 중입니다. 잠시 후 다시 시도해주세요.");
             let wb = XLSX.utils.book_new();
@@ -1074,20 +1051,13 @@
                 '모델명': item.modelName, '비용구분': item.costType, '완료메모': item.archiveMemo || ''
             }));
 
-            let genWs = XLSX.utils.json_to_sheet(formatData(savedData));
-            XLSX.utils.book_append_sheet(wb, genWs, "일반대기열");
+            let genWs = XLSX.utils.json_to_sheet(formatData(savedData)); XLSX.utils.book_append_sheet(wb, genWs, "일반대기열");
+            let cnetWs = XLSX.utils.json_to_sheet(formatData(cnetData)); XLSX.utils.book_append_sheet(wb, cnetWs, "씨넷대기열");
+            let arcWs = XLSX.utils.json_to_sheet(formatArchive(archiveData)); XLSX.utils.book_append_sheet(wb, arcWs, "완료일정");
 
-            let cnetWs = XLSX.utils.json_to_sheet(formatData(cnetData));
-            XLSX.utils.book_append_sheet(wb, cnetWs, "씨넷대기열");
-
-            let arcWs = XLSX.utils.json_to_sheet(formatArchive(archiveData));
-            XLSX.utils.book_append_sheet(wb, arcWs, "완료일정");
-
-            let dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-            XLSX.writeFile(wb, `YSOL_Data_Excel_${dateStr}.xlsx`);
+            let dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, ''); XLSX.writeFile(wb, `YSOL_Data_Excel_${dateStr}.xlsx`);
         }
 
-        // 🌟 v1.8.22: 복구 로직 강화 (복구 즉시 save() 호출하여 클라우드 덮어쓰기)
         function restoreData(event) {
             const file = event.target.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -1097,10 +1067,7 @@
                 try {
                     let cleanText = e.target.result.replace(/^\uFEFF/, '').trim();
                     parsed = JSON.parse(cleanText);
-                } catch (err) {
-                    alert("⚠️ 파일 형식이 잘못되었습니다. (JSON 파싱 에러)");
-                    return;
-                }
+                } catch (err) { alert("⚠️ 파일 형식이 잘못되었습니다. (JSON 파싱 에러)"); return; }
                 
                 try {
                     if (parsed.Todo) savedData = parsed.Todo.filter(item => item !== null);
@@ -1110,20 +1077,11 @@
                     if (parsed.FixedAddr) fixedStartAddr = parsed.FixedAddr;
                     if (parsed.DailyMemos) dailyMemos = parsed.DailyMemos;
                     
-                    selectedGen = []; selectedCnet = [];
-
-                    // 🌟 복구한 데이터를 로컬에 저장하고 클라우드에 덮어쓰기 명령 전송!
-                    save(); 
-                    render(); 
+                    selectedGen = []; selectedCnet = []; save(); render(); 
                     alert("✨ 시스템 데이터 복구 및 클라우드 동기화가 완벽하게 완료되었습니다!");
-                } catch (err2) {
-                    console.error("렌더링 에러 상세내역:", err2);
-                    alert("⚠️ 오류 발생: " + err2.message);
-                }
+                } catch (err2) { alert("⚠️ 오류 발생: " + err2.message); }
             };
-            
-            reader.readAsText(file, "UTF-8"); 
-            event.target.value = ''; 
+            reader.readAsText(file, "UTF-8"); event.target.value = ''; 
         }
 
         function openPrintWindow(title, tableRows) {
@@ -1190,9 +1148,7 @@
                                 let modelName = colMap.model !== undefined ? String(row[colMap.model]||'').trim() : '';
                                 let name = colMap.name !== undefined ? String(row[colMap.name]||'').trim() : '고객';
                                 let contentRaw = colMap.content !== undefined ? String(row[colMap.content]||'').trim() : '';
-                                
-                                let telRaw = colMap.tel !== undefined ? String(row[colMap.tel]||'').trim() : ''; 
-                                let tel = formatPhoneNumber(telRaw);
+                                let telRaw = colMap.tel !== undefined ? String(row[colMap.tel]||'').trim() : ''; let tel = formatPhoneNumber(telRaw);
                                 
                                 let dateStr = '';
                                 if (colMap.date !== undefined && row[colMap.date]) {
@@ -1205,11 +1161,8 @@
                                 dateStr = dateStr.replace(/\//g, '-').replace(/\./g, '-');
                                 
                                 let info = { source:'cnet', asNum, addr, searchTarget:addrBase, name, tel, modelName, content: contentRaw, costType, date: dateStr, memo: "" };
-                                if (!cnetData.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { 
-                                    SearchQueue.add(info, 'cnet'); 
-                                } else { 
-                                    ReportManager.addDuplicate(info.asNum, info.addr, info.name); 
-                                }
+                                if (!cnetData.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { SearchQueue.add(info, 'cnet'); } 
+                                else { ReportManager.addDuplicate(info.asNum, info.addr, info.name); }
                             }
                         } else {
                             let info = { source:'general', asNum:"", addr:"", name:"", content:"", date:"", tel:"", costType:"", modelName:"" }; 
@@ -1245,20 +1198,15 @@
                             
                             if (info.addr) { 
                                 info.searchTarget = info.addr; 
-                                if (!savedData.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { 
-                                    SearchQueue.add(info, 'general'); 
-                                } else { 
-                                    ReportManager.addDuplicate(info.asNum, info.addr, info.name); 
-                                }
+                                if (!savedData.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { SearchQueue.add(info, 'general'); } 
+                                else { ReportManager.addDuplicate(info.asNum, info.addr, info.name); }
                             }
                         }
                     });
                 }
                 event.target.value = ""; 
                 if (SearchQueue.queue.length === 0) ReportManager.showIfAny(); 
-            } catch(e) {
-                alert("⚠️ 시스템 에러(Excel 파싱): " + e.message);
-            }
+            } catch(e) { alert("⚠️ 시스템 에러(Excel 파싱): " + e.message); }
         }
 
         function processWebInput() {
@@ -1273,47 +1221,24 @@
                 blocks.forEach(block => {
                     let info = { source: 'general', asNum: "", addr: "", searchTarget: "", name: "", content: "", memo: "", date: "", tel: "", costType: "", modelName: "" };
                     let dateMatch = block.match(/(\d{4})년\s*(\d{2})월\s*(\d{2})일/); 
-                    if (dateMatch) { info.date = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`; } 
-                    else { info.date = new Date().toISOString().split('T')[0]; }
+                    if (dateMatch) { info.date = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`; } else { info.date = new Date().toISOString().split('T')[0]; }
                     
-                    const extractData = (keyword) => { 
-                        let match = block.match(new RegExp(`(?:[●\\-*■▶]\\s*)?${keyword}\\s*[:\\-]?\\s*([\\s\\S]*?)(?=\\n\\s*[●\\-*■▶]|$)`)); 
-                        return match ? match[1].trim() : ""; 
-                    };
+                    const extractData = (keyword) => { let match = block.match(new RegExp(`(?:[●\\-*■▶]\\s*)?${keyword}\\s*[:\\-]?\\s*([\\s\\S]*?)(?=\\n\\s*[●\\-*■▶]|$)`)); return match ? match[1].trim() : ""; };
                     
-                    info.name = extractData("고객명") || extractData("성명"); 
-                    info.addr = extractData("주소") || extractData("방문지"); info.searchTarget = info.addr;
-                    
-                    let telRaw = extractData("연락처") || extractData("대표번호") || extractData("전화") || extractData("휴대폰"); 
-                    info.tel = formatPhoneNumber(telRaw);
-                    
-                    info.modelName = extractData("모델명") || extractData("품목"); 
-                    info.costType = extractData("유,무상구분") || extractData("유/무상구분") || extractData("운영사\\[유/무상\\]") || extractData("비용구분");
+                    info.name = extractData("고객명") || extractData("성명"); info.addr = extractData("주소") || extractData("방문지"); info.searchTarget = info.addr;
+                    info.tel = formatPhoneNumber(extractData("연락처") || extractData("대표번호") || extractData("전화") || extractData("휴대폰"));
+                    info.modelName = extractData("모델명") || extractData("품목"); info.costType = extractData("유,무상구분") || extractData("유/무상구분") || extractData("운영사\\[유/무상\\]") || extractData("비용구분");
                     info.asNum = extractData("접수번호") || extractData("AS번호") || "WEB-" + Date.now().toString().slice(-6) + Math.floor(Math.random()*10);
                     
-                    let content = extractData("접수내용") || extractData("증상");
-                    let special = extractData("특이사항");
-                    let evOperator = extractData("운영사업자");
-                    
-                    let fullContent = content; 
-                    if (special) fullContent += "\n[특이사항] " + special; 
-                    if (evOperator) fullContent += "\n[운영사] " + evOperator; 
-                    info.content = fullContent.trim();
+                    info.content = ((extractData("접수내용") || extractData("증상")) + (extractData("특이사항") ? "\n[특이사항] " + extractData("특이사항") : "") + (extractData("운영사업자") ? "\n[운영사] " + extractData("운영사업자") : "")).trim();
                     
                     if (info.addr) { 
                         const isDup = savedData.some(d => d.asNum === info.asNum) || archiveData.some(d => d.asNum === info.asNum); 
-                        if (!isDup) { SearchQueue.add(info, 'general'); } 
-                        else { ReportManager.addDuplicate(info.asNum, info.addr, info.name); } 
-                    } else {
-                        alert(`⚠️ [${info.asNum}] 주소를 찾지 못해 대기열 추가에 실패했습니다. 수동으로 등록해주세요.`);
-                        ReportManager.addFailed("주소 누락 (WEB 텍스트)", info.asNum);
-                    }
+                        if (!isDup) { SearchQueue.add(info, 'general'); } else { ReportManager.addDuplicate(info.asNum, info.addr, info.name); } 
+                    } else { ReportManager.addFailed("주소 누락 (WEB 텍스트)", info.asNum); }
                 });
-                closeWebModal();
-                if (SearchQueue.queue.length === 0) ReportManager.showIfAny();
-            } catch(e) {
-                alert("⚠️ 시스템 에러(WEB 추출): " + e.message);
-            }
+                closeWebModal(); if (SearchQueue.queue.length === 0) ReportManager.showIfAny();
+            } catch(e) { alert("⚠️ 시스템 에러(WEB 추출): " + e.message); }
         }
     </script>
 </body>
