@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>Y-Solution v1.8.27 (Cloud Master - Perfect Drag)</title>
+    <title>Y-Solution v1.8.28 (Cloud Master - Underbar Fix)</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -301,7 +301,7 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec";
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.27' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.28' };
 
         let isDragging = false;
         let isTyping = false; 
@@ -581,30 +581,42 @@
             clearTimeout(renderDebounceTimer); renderDebounceTimer = setTimeout(render, 150); 
         }
 
-        // 🌟 스크롤 메모리 타이머 고도화 (v1.8.27 Fix)
+        // 🌟 완벽하게 스크롤 값을 잡아내는 로직 (확장보드 세로스크롤 추가)
         function render() { 
             if(isDragging) return; 
 
-            // 1. 현재 스크롤 기억
+            // 1. 현재 모든 스크롤 위치 영혼까지 끌어모아 기억하기
             let sGen = document.getElementById('listGen') ? document.getElementById('listGen').scrollTop : 0;
             let sCnet = document.getElementById('listCnet') ? document.getElementById('listCnet').scrollTop : 0;
-            let sArc = document.getElementById('archiveScrollArea') ? document.getElementById('archiveScrollArea').scrollLeft : 0;
+            
+            // 확장 보드 가로 스크롤
+            let sArcX = document.getElementById('archiveScrollArea') ? document.getElementById('archiveScrollArea').scrollLeft : 0;
+            
+            // 🌟 제일 중요: 확장 보드 내 각 날짜별 세로 스크롤!
+            let archiveScrollsY = [];
+            document.querySelectorAll('.date-col-items').forEach(el => archiveScrollsY.push(el.scrollTop));
 
+            // 화면 그리기
             document.getElementById('genCountBadge').innerText = `총 ${savedData.length}건`;
             document.getElementById('cnetCountBadge').innerText = `총 ${cnetData.length}건`;
             renderMemos(); renderList('general'); renderList('cnet'); renderArchiveList(); updateMapMarkers(); updateSummary(); 
 
-            // 2. 화면이 그려진 직후 (0.01초 뒤) 스크롤 강제 복구
+            // 2. 화면이 그려진 직후 (0.01초 뒤) 스크롤 위치 강제 주입
             setTimeout(() => {
                 if(document.getElementById('listGen')) document.getElementById('listGen').scrollTop = sGen;
                 if(document.getElementById('listCnet')) document.getElementById('listCnet').scrollTop = sCnet;
-                if(document.getElementById('archiveScrollArea')) document.getElementById('archiveScrollArea').scrollLeft = sArc;
+                if(document.getElementById('archiveScrollArea')) document.getElementById('archiveScrollArea').scrollLeft = sArcX;
+                
+                // 🌟 박스별 세로 스크롤 복구
+                let colEls = document.querySelectorAll('.date-col-items');
+                archiveScrollsY.forEach((scrollY, i) => {
+                    if(colEls[i]) colEls[i].scrollTop = scrollY;
+                });
             }, 10);
         }
 
-        // 드래그 제어 헬퍼
-        window.enableDrag = function(btn) { const item = btn.closest('.list-item'); if (item) item.setAttribute('draggable', 'true'); };
-        window.disableDrag = function(btn) { const item = btn.closest('.list-item'); if (item) item.removeAttribute('draggable'); };
+        window.enableDrag = function(btn) { const item = btn.closest('.archive-item') || btn.closest('.list-item'); if (item) item.setAttribute('draggable', 'true'); };
+        window.disableDrag = function(btn) { const item = btn.closest('.archive-item') || btn.closest('.list-item'); if (item) item.removeAttribute('draggable'); };
 
         function renderList(type) {
             const isGen = type === 'general'; const dataArr = isGen ? savedData : cnetData; const selArr = isGen ? selectedGen : selectedCnet;
@@ -618,7 +630,6 @@
                 let addrStr = String(item.addr || '').toLowerCase(); let asNumStr = String(item.asNum || '').toLowerCase();
                 let nameStr = String(item.name || '').toLowerCase(); let telStr = String(item.tel || '').replace(/-/g, '');
                 let modelStr = String(item.modelName || '').toLowerCase();
-
                 if (!selArr.includes(i)) {
                     if (searchKeyword && (addrStr.includes(searchKeyword) || asNumStr.includes(searchKeyword) || nameStr.includes(searchKeyword) || telStr.includes(searchKeyword.replace(/-/g,'')) || modelStr.includes(searchKeyword))) { matchedIdx.push(i); } 
                     else { otherIdx.push(i); }
@@ -646,53 +657,25 @@
 
                 const div = document.createElement('div');
                 div.className = 'list-item' + (isSelected ? (isGen ? ' selected-gen' : ' selected-cnet') : '') + (isSearched ? ' searched' : '');
-                
-                // 🌟 핵심: 데이터 교체를 위해 원본 인덱스를 dataset에 저장
                 div.dataset.idx = idx; 
-
                 div.onclick = () => { if (window.getSelection().toString().length > 0) return; toggleSelect(type, idx); };
 
                 let diffText = getRealTimeDiff(item);
                 let costBadge = item.costType === '유상' ? `<span style="background:#ff5252; color:white; font-size:9px; padding:1px 4px; border-radius:3px; margin-left:4px;">유상</span>` : item.costType === '무상' ? `<span style="background:#28a745; color:white; font-size:9px; padding:1px 4px; border-radius:3px; margin-left:4px;">무상</span>` : '';
                 let pinWarning = !item.lat ? `<span class="warning-badge" title="현장명 사전에 주소 일부분을 추가하세요">⚠️ 핀 누락</span>` : '';
                 
-                // 🌟 모든 항목에 드래그 & 드롭 이벤트(Drop Zone) 부여!
-                div.ondragstart = function(e) { 
-                    isDragging = true; 
-                    e.dataTransfer.setData('text/plain', JSON.stringify({ type: type, idx: this.dataset.idx })); 
-                    this.style.opacity = '0.4'; 
-                };
-                div.ondragend = function(e) { 
-                    isDragging = false; 
-                    this.style.opacity = '1'; 
-                    this.removeAttribute('draggable'); 
-                    render(); // 스타일 찌꺼기 방지용 렌더링
-                };
-                div.ondragover = function(e) { 
-                    e.preventDefault(); 
-                    this.style.borderTop = '3px dashed #28a745'; 
-                };
-                div.ondragleave = function(e) { 
-                    this.style.borderTop = ''; 
-                };
+                div.ondragstart = function(e) { isDragging = true; e.dataTransfer.setData('text/plain', JSON.stringify({ type: type, idx: this.dataset.idx })); this.style.opacity = '0.4'; };
+                div.ondragend = function(e) { isDragging = false; this.style.opacity = '1'; this.removeAttribute('draggable'); render(); };
+                div.ondragover = function(e) { e.preventDefault(); this.style.borderTop = '3px dashed #28a745'; };
+                div.ondragleave = function(e) { this.style.borderTop = ''; };
                 div.ondrop = function(e) {
-                    e.preventDefault(); 
-                    this.style.borderTop = ''; 
-                    isDragging = false;
+                    e.preventDefault(); this.style.borderTop = ''; isDragging = false;
                     try {
-                        const data = JSON.parse(e.dataTransfer.getData('text/plain')); 
-                        if (data.type !== type) return; 
-                        
-                        const draggedIdx = parseInt(data.idx, 10); 
-                        const targetIdx = parseInt(this.dataset.idx, 10);
-                        
-                        // 🌟 가짜(selArr)가 아니라, 진짜 데이터 배열 순서를 교체 (Splice)
+                        const data = JSON.parse(e.dataTransfer.getData('text/plain')); if (data.type !== type) return; 
+                        const draggedIdx = parseInt(data.idx, 10); const targetIdx = parseInt(this.dataset.idx, 10);
                         if (!isNaN(draggedIdx) && !isNaN(targetIdx) && draggedIdx !== targetIdx) { 
                             let targetArr = type === 'general' ? savedData : cnetData;
-                            const movedItem = targetArr.splice(draggedIdx, 1)[0]; 
-                            targetArr.splice(targetIdx, 0, movedItem); 
-                            
-                            // 배열이 섞였으므로 기존 파란색 선택 상태는 해제하여 충돌 방지
+                            const movedItem = targetArr.splice(draggedIdx, 1)[0]; targetArr.splice(targetIdx, 0, movedItem); 
                             if (type === 'general') selectedGen = []; else selectedCnet = [];
                             save(); render(); 
                         }
@@ -700,9 +683,7 @@
                 };
 
                 let moveBtns = isSelected ? `<span class="move-btn" onclick="moveUp('${type}', ${idx}, event)">🔼</span><span class="move-btn" onclick="moveDown('${type}', ${idx}, event)">🔽</span>` : '';
-                
-                // 🌟 모든 항목에 상시 노출 손잡이 적용
-                let dragHandle = `<span class="drag-handle" onmousedown="enableDrag(this)" onmouseup="disableDrag(this)" onmouseleave="disableDrag(this)" title="클릭한 채로 위아래로 끌어서 순서를 바꿉니다">⣿</span>`;
+                let dragHandle = `<span class="drag-handle" onmousedown="window.enableDrag(this)" onmouseup="window.disableDrag(this)" onmouseleave="window.disableDrag(this)" title="클릭한 채로 위아래로 끌어서 순서를 바꿉니다">⣿</span>`;
 
                 div.innerHTML = `
                     <div class="as-num-label ${isGen ? '' : 'cnet'}">
@@ -722,6 +703,7 @@
             listEl.appendChild(fragment);
         }
 
+        // 언더바 항목 이동 버튼
         function moveArchiveUp(idx) { if (idx < archiveData.length - 1 && archiveData[idx].completedDate === archiveData[idx+1].completedDate) { [archiveData[idx], archiveData[idx+1]] = [archiveData[idx+1], archiveData[idx]]; save(); render(); } }
         function moveArchiveDown(idx) { if (idx > 0 && archiveData[idx].completedDate === archiveData[idx-1].completedDate) { [archiveData[idx], archiveData[idx-1]] = [archiveData[idx-1], archiveData[idx]]; save(); render(); } }
 
@@ -816,8 +798,48 @@
                 
                 arcGroups[dateKey].slice().reverse().forEach(obj => {
                     const d = document.createElement('div'); d.className = 'archive-item';
-                    d.ondragstart = function(e) { isDragging = true; e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'archive', idx: obj.idx })); this.style.opacity = '0.4'; };
-                    d.ondragend = function(e) { isDragging = false; this.style.opacity = '1'; this.removeAttribute('draggable'); };
+                    
+                    // 🌟 확장 보드 드래그 앤 드롭 완벽 수술 (수직 이동)
+                    d.ondragstart = function(e) { 
+                        isDragging = true; 
+                        e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'archive', idx: obj.idx })); 
+                        this.style.opacity = '0.4'; 
+                    };
+                    d.ondragend = function(e) { 
+                        isDragging = false; 
+                        this.style.opacity = '1'; 
+                        this.removeAttribute('draggable'); 
+                        render();
+                    };
+                    d.ondragover = function(e) { 
+                        e.preventDefault(); 
+                        e.stopPropagation(); // 기둥(column)으로 드롭되는 것 방지
+                        this.style.borderTop = '3px dashed #6f42c1'; // 보라색 점선
+                    };
+                    d.ondragleave = function(e) { 
+                        this.style.borderTop = ''; 
+                    };
+                    d.ondrop = function(e) {
+                        e.preventDefault(); 
+                        e.stopPropagation(); // 기둥(column)으로 드롭되는 것 방지
+                        this.style.borderTop = ''; 
+                        isDragging = false;
+                        try {
+                            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                            if (data.type === 'archive') {
+                                const draggedIdx = parseInt(data.idx, 10);
+                                const targetIdx = parseInt(obj.idx, 10);
+                                if (!isNaN(draggedIdx) && !isNaN(targetIdx) && draggedIdx !== targetIdx) {
+                                    // 🌟 진짜 배열(archiveData) 내에서 위치 이동
+                                    const movedItem = archiveData.splice(draggedIdx, 1)[0];
+                                    // 떨어뜨린 곳의 날짜가 다르다면 그 날짜를 강제 흡수
+                                    movedItem.completedDate = archiveData[targetIdx] ? archiveData[targetIdx].completedDate : movedItem.completedDate;
+                                    archiveData.splice(targetIdx, 0, movedItem);
+                                    save(); render();
+                                }
+                            }
+                        } catch(err) {}
+                    };
 
                     let diffText = getRealTimeDiff(obj.item);
                     let costBadge = obj.item.costType === '유상' ? `<span style="background:#ff5252; color:white; font-size:9px; padding:2px 4px; border-radius:3px; margin-left:4px;">유상</span>` : obj.item.costType === '무상' ? `<span style="background:#28a745; color:white; font-size:9px; padding:2px 4px; border-radius:3px; margin-left:4px;">무상</span>` : '';
