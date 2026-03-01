@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>Y-Solution v1.8.26 (Cloud Master - UI Fix)</title>
+    <title>Y-Solution v1.8.27 (Cloud Master - Perfect Drag)</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -59,11 +59,11 @@
         .btn-date-action { cursor: pointer; font-size: 9px; padding: 2px 5px; border: 1px solid #aaa; border-radius: 4px; background: #fff; font-weight: bold; color: #333; margin-left: 2px; }
         .btn-date-action:hover { background: #eee; }
 
-        .drag-handle { display: inline-block; cursor: grab; font-size: 14px; margin-right: 4px; color: #999; vertical-align: middle; transition: 0.1s; }
-        .drag-handle:active { cursor: grabbing; color: #111; }
+        .drag-handle { display: inline-block; cursor: grab; font-size: 14px; margin-right: 4px; color: #555; vertical-align: middle; transition: 0.1s; padding: 2px; border-radius: 3px; background: #eee; }
+        .drag-handle:active { cursor: grabbing; color: #111; background: #ccc; }
         .order-badge { display: inline-block; background: #4a90e2; color: white; width: 14px; height: 14px; border-radius: 50%; text-align: center; line-height: 14px; font-weight: bold; font-size:9px; margin-right: 4px; vertical-align: middle; }
         .order-badge.cnet { background: #ff4757; }
-        .as-num-label { font-size: 12px; color: #0056b3; font-weight: bold; margin-bottom: 1px; }
+        .as-num-label { font-size: 12px; color: #0056b3; font-weight: bold; margin-bottom: 1px; display: flex; align-items: center; }
         .as-num-label.cnet { color: #d63031; }
         
         .addr-text { display: block; margin: 1px 0; font-size: 12px; color: #222; font-weight: bold; line-height: 1.15; word-break: keep-all; }
@@ -301,9 +301,8 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec";
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.26' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.27' };
 
-        // 🌟 스크롤 튕김 & 포커스 증발 방지용 전역 상태 변수
         let isDragging = false;
         let isTyping = false; 
 
@@ -312,12 +311,7 @@
             get: (key, defaultVal) => {
                 try {
                     const data = localStorage.getItem(StorageManager.getKey(key));
-                    if (data) {
-                        const parsed = JSON.parse(data);
-                        if (Array.isArray(defaultVal) && !Array.isArray(parsed)) return defaultVal;
-                        return parsed;
-                    }
-                    return defaultVal;
+                    return data ? JSON.parse(data) : defaultVal;
                 } catch (e) { return defaultVal; }
             },
             set: (key, val) => {
@@ -326,8 +320,7 @@
         };
 
         function escapeHTML(str) {
-            if (!str) return '';
-            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+            return str ? String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;') : '';
         }
 
         var defaultAlias = { "동탄 아테라파밀리에": "경기도 화성시 신동 561-1" };
@@ -353,8 +346,7 @@
             showLoader();
             try {
                 let response = await fetch(GAS_API_URL);
-                let text = await response.text();
-                let json = text ? JSON.parse(text) : {};
+                let json = await response.json();
                 
                 if (json && Object.keys(json).length > 0 && (json.Todo || json.Archive)) {
                     if (json.Todo) savedData = json.Todo.filter(item => item !== null);
@@ -364,45 +356,28 @@
                     if (json.FixedAddr) fixedStartAddr = json.FixedAddr;
                     if (json.DailyMemos) dailyMemos = json.DailyMemos;
                     
-                    StorageManager.set('Todo', savedData);
-                    StorageManager.set('CnetTodo', cnetData);
-                    StorageManager.set('Archive', archiveData);
-                    StorageManager.set('AddressAlias', addressAlias);
-                    StorageManager.set('FixedAddr', fixedStartAddr);
-                    StorageManager.set('DailyMemos', dailyMemos);
+                    StorageManager.set('Todo', savedData); StorageManager.set('CnetTodo', cnetData); StorageManager.set('Archive', archiveData);
+                    StorageManager.set('AddressAlias', addressAlias); StorageManager.set('FixedAddr', fixedStartAddr); StorageManager.set('DailyMemos', dailyMemos);
                 }
-            } catch(e) { console.log("네트워크 에러: 로컬 데이터를 사용합니다.", e); }
+            } catch(e) {}
             hideLoader();
         }
 
         async function saveToCloud(isManual = false) {
             if (!GAS_API_URL || GAS_API_URL === "YOUR_WEB_APP_URL_HERE") return;
             if (isManual) showLoader();
-            
-            let payload = {
-                Todo: savedData, CnetTodo: cnetData, Archive: archiveData,
-                AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos
-            };
-            
+            let payload = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos };
             try {
                 await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify(payload) });
                 if(isManual) alert("☁️ 현재 PC 데이터가 클라우드에 완벽하게 덮어씌워졌습니다!");
-            } catch(e) {
-                if(isManual) alert("⚠️ 통신 에러: 네트워크 상태를 확인해주세요.");
-            }
+            } catch(e) { if(isManual) alert("⚠️ 통신 에러"); }
             if(isManual) hideLoader();
         }
 
         function save() {
-            StorageManager.set('Todo', savedData);
-            StorageManager.set('CnetTodo', cnetData);
-            StorageManager.set('Archive', archiveData);
-            StorageManager.set('AddressAlias', addressAlias);
-            StorageManager.set('FixedAddr', fixedStartAddr);
-            StorageManager.set('DailyMemos', dailyMemos);
-
-            clearTimeout(cloudSaveTimer);
-            cloudSaveTimer = setTimeout(() => { saveToCloud(false); }, 2000);
+            StorageManager.set('Todo', savedData); StorageManager.set('CnetTodo', cnetData); StorageManager.set('Archive', archiveData);
+            StorageManager.set('AddressAlias', addressAlias); StorageManager.set('FixedAddr', fixedStartAddr); StorageManager.set('DailyMemos', dailyMemos);
+            clearTimeout(cloudSaveTimer); cloudSaveTimer = setTimeout(() => { saveToCloud(false); }, 2000);
         }
 
         const ReportManager = {
@@ -412,10 +387,9 @@
             clear: function() { this.duplicates = []; this.failedSearches = []; },
             showIfAny: function() {
                 if (this.duplicates.length === 0 && this.failedSearches.length === 0) return;
-                document.getElementById('reportDuplicateArea').innerHTML = this.duplicates.length > 0 ? this.duplicates.map(d => escapeHTML(d)).join('<br>') : '<span style="color:#aaa;">중복 데이터가 없습니다.</span>';
-                document.getElementById('reportFailedArea').innerHTML = this.failedSearches.length > 0 ? this.failedSearches.map(d => escapeHTML(d)).join('<br>') : '<span style="color:#aaa;">모든 주소를 성공적으로 지도에 꽂았습니다.</span>';
-                document.getElementById('reportModal').style.display = 'flex';
-                this.clear();
+                document.getElementById('reportDuplicateArea').innerHTML = this.duplicates.length > 0 ? this.duplicates.map(d => escapeHTML(d)).join('<br>') : '<span style="color:#aaa;">중복 없음</span>';
+                document.getElementById('reportFailedArea').innerHTML = this.failedSearches.length > 0 ? this.failedSearches.map(d => escapeHTML(d)).join('<br>') : '<span style="color:#aaa;">성공</span>';
+                document.getElementById('reportModal').style.display = 'flex'; this.clear();
             }
         };
 
@@ -554,33 +528,22 @@
         function renderMemos() {
             let todayStr = getLocalDateString(new Date());
             document.getElementById('memoDateStr').innerText = `(${todayStr})`;
-            
-            // 타이핑 중이 아닐 때만 value 업데이트 (커서 증발 방지)
             if(!isTyping) { document.getElementById('memoToday').value = dailyMemos[todayStr] || ""; }
-            
-            const archiveArea = document.getElementById('memoArchiveList');
-            archiveArea.innerHTML = '';
-            
+            const archiveArea = document.getElementById('memoArchiveList'); archiveArea.innerHTML = '';
             let sortedDates = Object.keys(dailyMemos).sort((a,b) => b.localeCompare(a));
             sortedDates.forEach(date => {
                 if (date !== todayStr && String(dailyMemos[date] || '').trim()) {
-                    const div = document.createElement('div');
-                    div.className = 'memo-archive-item';
+                    const div = document.createElement('div'); div.className = 'memo-archive-item';
                     div.innerHTML = `<strong style="color:#0056b3;">[${date}]</strong><br>${escapeHTML(dailyMemos[date])}`;
                     archiveArea.appendChild(div);
                 }
             });
         }
 
-        function saveMemoToday() {
-            let todayStr = getLocalDateString(new Date());
-            dailyMemos[todayStr] = document.getElementById('memoToday').value;
-            save(); // render() 호출 안함 (포커스 유지)
-        }
+        function saveMemoToday() { let todayStr = getLocalDateString(new Date()); dailyMemos[todayStr] = document.getElementById('memoToday').value; save(); }
 
         window.onload = async function() {
             await fetchFromCloud();
-
             kakao.maps.load(function() {
                 map = new kakao.maps.Map(document.getElementById('map'), { center: new kakao.maps.LatLng(37.145, 127.067), level: 8 });
                 geocoder = new kakao.maps.services.Geocoder();
@@ -589,8 +552,7 @@
                 kakao.maps.event.addListener(clusterer, 'clustered', function(clusters) {
                     clusters.forEach(function(cluster) {
                         var markers = cluster.getMarkers(); var selCount = markers.filter(m => m.customData_isSelected).length; var total = markers.length;
-                        var overlay = cluster.getClusterMarker(); 
-                        var div = document.createElement('div');
+                        var overlay = cluster.getClusterMarker(); var div = document.createElement('div');
                         div.style.cssText = 'width:36px; height:36px; border-radius:50%; color:#fff; text-align:center; font-weight:bold; line-height:36px; font-size:11px; box-shadow:0 2px 4px rgba(0,0,0,0.3);';
                         if (selCount > 0) { div.style.background = 'rgba(40, 167, 69, 0.95)'; div.style.border = '2px solid #fff'; div.innerHTML = selCount + '/' + total; } 
                         else { div.style.background = 'rgba(51, 150, 255, 0.85)'; div.style.border = '2px solid #fff'; div.innerHTML = total; }
@@ -615,34 +577,34 @@
         }
 
         function debouncedRender() { 
-            if(isDragging || isTyping) return; // 타이핑/드래그 중엔 방해 안함
+            if(isDragging || isTyping) return; 
             clearTimeout(renderDebounceTimer); renderDebounceTimer = setTimeout(render, 150); 
         }
 
-        // 🌟 스크롤 메모리 장착 (v1.8.26 Fix)
+        // 🌟 스크롤 메모리 타이머 고도화 (v1.8.27 Fix)
         function render() { 
-            if(isDragging) return; // 드래그 중 화면 초기화 방지
+            if(isDragging) return; 
 
-            // 1. 현재 스크롤 위치 기록
+            // 1. 현재 스크롤 기억
             let sGen = document.getElementById('listGen') ? document.getElementById('listGen').scrollTop : 0;
             let sCnet = document.getElementById('listCnet') ? document.getElementById('listCnet').scrollTop : 0;
             let sArc = document.getElementById('archiveScrollArea') ? document.getElementById('archiveScrollArea').scrollLeft : 0;
 
-            // 2. 렌더링
             document.getElementById('genCountBadge').innerText = `총 ${savedData.length}건`;
             document.getElementById('cnetCountBadge').innerText = `총 ${cnetData.length}건`;
-            renderMemos(); 
-            renderList('general'); renderList('cnet'); renderArchiveList(); updateMapMarkers(); updateSummary(); 
+            renderMemos(); renderList('general'); renderList('cnet'); renderArchiveList(); updateMapMarkers(); updateSummary(); 
 
-            // 3. 스크롤 강제 복구
-            if(document.getElementById('listGen')) document.getElementById('listGen').scrollTop = sGen;
-            if(document.getElementById('listCnet')) document.getElementById('listCnet').scrollTop = sCnet;
-            if(document.getElementById('archiveScrollArea')) document.getElementById('archiveScrollArea').scrollLeft = sArc;
+            // 2. 화면이 그려진 직후 (0.01초 뒤) 스크롤 강제 복구
+            setTimeout(() => {
+                if(document.getElementById('listGen')) document.getElementById('listGen').scrollTop = sGen;
+                if(document.getElementById('listCnet')) document.getElementById('listCnet').scrollTop = sCnet;
+                if(document.getElementById('archiveScrollArea')) document.getElementById('archiveScrollArea').scrollLeft = sArc;
+            }, 10);
         }
 
-        // 🌟 드래그 위치 이동 (v1.8.26 Fix)
-        window.enableDrag = function(btn) { const item = btn.closest('.archive-item') || btn.closest('.list-item'); if (item) item.setAttribute('draggable', 'true'); };
-        window.disableDrag = function(btn) { const item = btn.closest('.archive-item') || btn.closest('.list-item'); if (item) item.removeAttribute('draggable'); };
+        // 드래그 제어 헬퍼
+        window.enableDrag = function(btn) { const item = btn.closest('.list-item'); if (item) item.setAttribute('draggable', 'true'); };
+        window.disableDrag = function(btn) { const item = btn.closest('.list-item'); if (item) item.removeAttribute('draggable'); };
 
         function renderList(type) {
             const isGen = type === 'general'; const dataArr = isGen ? savedData : cnetData; const selArr = isGen ? selectedGen : selectedCnet;
@@ -684,38 +646,68 @@
 
                 const div = document.createElement('div');
                 div.className = 'list-item' + (isSelected ? (isGen ? ' selected-gen' : ' selected-cnet') : '') + (isSearched ? ' searched' : '');
+                
+                // 🌟 핵심: 데이터 교체를 위해 원본 인덱스를 dataset에 저장
+                div.dataset.idx = idx; 
+
                 div.onclick = () => { if (window.getSelection().toString().length > 0) return; toggleSelect(type, idx); };
 
                 let diffText = getRealTimeDiff(item);
                 let costBadge = item.costType === '유상' ? `<span style="background:#ff5252; color:white; font-size:9px; padding:1px 4px; border-radius:3px; margin-left:4px;">유상</span>` : item.costType === '무상' ? `<span style="background:#28a745; color:white; font-size:9px; padding:1px 4px; border-radius:3px; margin-left:4px;">무상</span>` : '';
                 let pinWarning = !item.lat ? `<span class="warning-badge" title="현장명 사전에 주소 일부분을 추가하세요">⚠️ 핀 누락</span>` : '';
-                let moveBtns = '', dragHandle = '';
+                
+                // 🌟 모든 항목에 드래그 & 드롭 이벤트(Drop Zone) 부여!
+                div.ondragstart = function(e) { 
+                    isDragging = true; 
+                    e.dataTransfer.setData('text/plain', JSON.stringify({ type: type, idx: this.dataset.idx })); 
+                    this.style.opacity = '0.4'; 
+                };
+                div.ondragend = function(e) { 
+                    isDragging = false; 
+                    this.style.opacity = '1'; 
+                    this.removeAttribute('draggable'); 
+                    render(); // 스타일 찌꺼기 방지용 렌더링
+                };
+                div.ondragover = function(e) { 
+                    e.preventDefault(); 
+                    this.style.borderTop = '3px dashed #28a745'; 
+                };
+                div.ondragleave = function(e) { 
+                    this.style.borderTop = ''; 
+                };
+                div.ondrop = function(e) {
+                    e.preventDefault(); 
+                    this.style.borderTop = ''; 
+                    isDragging = false;
+                    try {
+                        const data = JSON.parse(e.dataTransfer.getData('text/plain')); 
+                        if (data.type !== type) return; 
+                        
+                        const draggedIdx = parseInt(data.idx, 10); 
+                        const targetIdx = parseInt(this.dataset.idx, 10);
+                        
+                        // 🌟 가짜(selArr)가 아니라, 진짜 데이터 배열 순서를 교체 (Splice)
+                        if (!isNaN(draggedIdx) && !isNaN(targetIdx) && draggedIdx !== targetIdx) { 
+                            let targetArr = type === 'general' ? savedData : cnetData;
+                            const movedItem = targetArr.splice(draggedIdx, 1)[0]; 
+                            targetArr.splice(targetIdx, 0, movedItem); 
+                            
+                            // 배열이 섞였으므로 기존 파란색 선택 상태는 해제하여 충돌 방지
+                            if (type === 'general') selectedGen = []; else selectedCnet = [];
+                            save(); render(); 
+                        }
+                    } catch(err) {}
+                };
 
-                if (isSelected) {
-                    moveBtns = `<span class="move-btn" onclick="moveUp('${type}', ${idx}, event)">🔼</span><span class="move-btn" onclick="moveDown('${type}', ${idx}, event)">🔽</span>`;
-                    dragHandle = `<span class="drag-handle" onmousedown="enableDrag(this)" onmouseup="disableDrag(this)" onmouseleave="disableDrag(this)">⣿</span>`;
-                    div.dataset.spos = sPos; 
-                    div.ondragstart = function(e) { isDragging = true; e.dataTransfer.setData('text/plain', JSON.stringify({ type: type, pos: this.dataset.spos })); this.style.opacity = '0.4'; };
-                    div.ondragend = function(e) { isDragging = false; this.style.opacity = '1'; this.removeAttribute('draggable'); };
-                    div.ondragover = function(e) { e.preventDefault(); this.style.borderTop = '3px dashed #28a745'; };
-                    div.ondragleave = function(e) { this.style.borderTop = ''; };
-                    div.ondrop = function(e) {
-                        e.preventDefault(); this.style.borderTop = '';
-                        try {
-                            const data = JSON.parse(e.dataTransfer.getData('text/plain')); if (data.type !== type) return; 
-                            const draggedPos = parseInt(data.pos, 10); const targetPos = parseInt(this.dataset.spos, 10);
-                            if (!isNaN(draggedPos) && draggedPos !== targetPos) { 
-                                const movedItem = selArr.splice(draggedPos, 1)[0]; 
-                                selArr.splice(targetPos, 0, movedItem); 
-                                isDragging = false; save(); render(); // 드래그 완료시 스크롤 복구하며 렌더링
-                            }
-                        } catch(err) {}
-                    };
-                }
+                let moveBtns = isSelected ? `<span class="move-btn" onclick="moveUp('${type}', ${idx}, event)">🔼</span><span class="move-btn" onclick="moveDown('${type}', ${idx}, event)">🔽</span>` : '';
+                
+                // 🌟 모든 항목에 상시 노출 손잡이 적용
+                let dragHandle = `<span class="drag-handle" onmousedown="enableDrag(this)" onmouseup="disableDrag(this)" onmouseleave="disableDrag(this)" title="클릭한 채로 위아래로 끌어서 순서를 바꿉니다">⣿</span>`;
 
                 div.innerHTML = `
                     <div class="as-num-label ${isGen ? '' : 'cnet'}">
-                        ${isSelected ? `${dragHandle}<span class="order-badge ${isGen?'':'cnet'}">${sPos + 1}</span>${moveBtns}` : ''}
+                        ${dragHandle}
+                        ${isSelected ? `<span class="order-badge ${isGen?'':'cnet'}">${sPos + 1}</span>${moveBtns}` : ''}
                         ${isGen ? '[일반]' : '[씨넷]'} ${escapeHTML(item.asNum || '번호없음')} ${costBadge} ${pinWarning}
                         <span style="font-size:9px; color:#ff5252; float:right; margin-top:2px;">D+${diffText}</span>
                     </div>
@@ -743,8 +735,7 @@
             archiveData.forEach((item, i) => { 
                 if (!item) return; 
                 let d = item.completedDate || '이전 완료건'; 
-                if (!arcGroups[d]) arcGroups[d] = []; 
-                arcGroups[d].push({ item, idx: i }); 
+                if (!arcGroups[d]) arcGroups[d] = []; arcGroups[d].push({ item, idx: i }); 
             });
             
             if (!arcGroups[dayAfterStr]) arcGroups[dayAfterStr] = [];
@@ -835,7 +826,7 @@
 
                     d.innerHTML = `
                         <div class="as-num-label ${obj.item.source === 'cnet' ? 'cnet' : ''}">
-                            <span class="drag-handle" onmousedown="enableDrag(this)" onmouseup="disableDrag(this)" onmouseleave="disableDrag(this)">⣿</span>
+                            <span class="drag-handle" onmousedown="window.enableDrag(this)" onmouseup="window.disableDrag(this)" onmouseleave="window.disableDrag(this)">⣿</span>
                             ${srcTag} ${escapeHTML(obj.item.asNum)} ${costBadge} ${pinWarning}
                             <span style="font-size:9px; color:#ff5252; float:right; margin-top:2px;">D+${diffText}</span>
                         </div>
@@ -863,38 +854,22 @@
             if (!clusterer) return;
             activeMarkers.forEach(obj => { if (obj.marker) kakao.maps.event.removeListener(obj.marker, 'click', obj.handler); });
             activeMarkers = []; clusterer.clear(); 
-            
             let items = archiveData.filter(d => (d.completedDate || '이전 완료건') === dateKey);
             if (items.length === 0) return alert("해당 날짜에 표시할 핀이 없습니다.");
             
-            let bounds = new kakao.maps.LatLngBounds();
-            let addedCount = 0; let addrCounts = {}; const offsetBase = 0.00025; 
+            let bounds = new kakao.maps.LatLngBounds(); let addedCount = 0; let addrCounts = {}; const offsetBase = 0.00025; 
             const offsets = [[0,0], [offsetBase,0], [0,offsetBase], [-offsetBase,0], [0,-offsetBase], [offsetBase,offsetBase], [-offsetBase,offsetBase], [-offsetBase,-offsetBase], [offsetBase,-offsetBase]];
 
             items.forEach((item) => {
                 if (!item || !item.lat || !item.lng) return;
                 const key = item.searchAddr || item.addr;
                 if (addrCounts[key] === undefined) addrCounts[key] = 0; let pCount = addrCounts[key]++; let off = offsets[pCount % offsets.length];
-                
                 let displayLat = parseFloat(item.lat) + off[0]; let displayLng = parseFloat(item.lng) + off[1];
-                
-                let mOpts = { position: new kakao.maps.LatLng(displayLat, displayLng) };
-                mOpts.image = new kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png', new kakao.maps.Size(24, 35));
-                mOpts.zIndex = 3;
-                
-                const marker = new kakao.maps.Marker(mOpts);
-                activeMarkers.push({ marker: marker, handler: null }); 
-                clusterer.addMarker(marker);
-                bounds.extend(new kakao.maps.LatLng(displayLat, displayLng));
-                addedCount++;
+                let mOpts = { position: new kakao.maps.LatLng(displayLat, displayLng) }; mOpts.image = new kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png', new kakao.maps.Size(24, 35)); mOpts.zIndex = 3;
+                const marker = new kakao.maps.Marker(mOpts); activeMarkers.push({ marker: marker, handler: null }); clusterer.addMarker(marker); bounds.extend(new kakao.maps.LatLng(displayLat, displayLng)); addedCount++;
             });
             
-            if (addedCount > 0) {
-                map.setBounds(bounds);
-                loadRouteFromArchive(dateKey);
-            } else {
-                alert("주소가 매칭되어 지도에 표시할 수 있는 핀이 없습니다. (핀 누락 확인 요망)");
-            }
+            if (addedCount > 0) { map.setBounds(bounds); loadRouteFromArchive(dateKey); } else { alert("주소가 매칭되어 지도에 표시할 수 있는 핀이 없습니다. (핀 누락 확인 요망)"); }
         }
 
         function loadRouteFromArchive(dateKey) {
@@ -902,53 +877,28 @@
             let items = archiveData.filter(d => (d.completedDate || '이전 완료건') === dateKey);
             if (items.length === 0) return alert("해당 날짜에 배정된 일정이 없습니다.");
             
-            let route = `[출발] ${fixedStartAddr}\n`; 
-            let seq = 1; const addrGroups = {};
-            
-            items.slice().reverse().forEach(item => {
-                if (!item) return;
-                const key = item.searchAddr || item.addr; 
-                if (!addrGroups[key]) addrGroups[key] = { gen: 0, cnet: 0 };
-                if (item.source === 'cnet') addrGroups[key].cnet++;
-                else addrGroups[key].gen++;
-            });
-            
-            for (const [key, counts] of Object.entries(addrGroups)) {
-                let badge = []; 
-                if (counts.gen > 0) badge.push(`일반 ${counts.gen}건`); 
-                if (counts.cnet > 0) badge.push(`씨넷 ${counts.cnet}건`);
-                let badgeStr = badge.length > 0 ? ` (${badge.join(', ')})` : ''; 
-                route += `${seq}. ${key}${badgeStr}\n`; seq++;
-            }
-            route += `[도착] ${fixedStartAddr}`; 
-            document.getElementById('routeText').value = route;
-            
-            const box = document.getElementById('routeBox');
-            if (box.classList.contains('hidden')) { toggleRouteBox(); }
+            let route = `[출발] ${fixedStartAddr}\n`; let seq = 1; const addrGroups = {};
+            items.slice().reverse().forEach(item => { if (!item) return; const key = item.searchAddr || item.addr; if (!addrGroups[key]) addrGroups[key] = { gen: 0, cnet: 0 }; if (item.source === 'cnet') addrGroups[key].cnet++; else addrGroups[key].gen++; });
+            for (const [key, counts] of Object.entries(addrGroups)) { let badge = []; if (counts.gen > 0) badge.push(`일반 ${counts.gen}건`); if (counts.cnet > 0) badge.push(`씨넷 ${counts.cnet}건`); let badgeStr = badge.length > 0 ? ` (${badge.join(', ')})` : ''; route += `${seq}. ${key}${badgeStr}\n`; seq++; }
+            route += `[도착] ${fixedStartAddr}`; document.getElementById('routeText').value = route;
+            const box = document.getElementById('routeBox'); if (box.classList.contains('hidden')) { toggleRouteBox(); }
         }
 
         function copyText() {
             const text = document.getElementById('routeText').value;
             if (!text || text === "항목을 선택하세요." || text === "🏠 거점을 설정해 주세요.") return alert("복사할 경로가 없습니다.");
-            const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-            alert("✨ AI 스케줄링 경로가 클립보드에 복사되었습니다!");
+            const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert("✨ AI 스케줄링 경로가 클립보드에 복사되었습니다!");
         }
 
         function copyArchiveDate(dateKey) {
             let items = archiveData.filter(d => (d.completedDate || '이전 완료건') === dateKey); if (items.length === 0) return;
             let text = `[${dateKey} 작업 일정/보고]\n`;
-            items.slice().reverse().forEach((item, i) => {
-                if (!item) return;
-                let src = item.source === 'cnet' ? '[씨넷]' : '[일반]'; let memoStr = item.archiveMemo ? ` (메모: ${item.archiveMemo})` : '';
-                text += `${i+1}. ${src} ${item.addr} / ${item.name||'미상'} / ${item.modelName||'기재없음'}${memoStr}\n`;
-            });
-            const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-            alert(`[${dateKey}] 내용이 텍스트로 복사되었습니다!\n(카톡이나 밴드에 붙여넣기 하세요)`);
+            items.slice().reverse().forEach((item, i) => { if (!item) return; let src = item.source === 'cnet' ? '[씨넷]' : '[일반]'; let memoStr = item.archiveMemo ? ` (메모: ${item.archiveMemo})` : ''; text += `${i+1}. ${src} ${item.addr} / ${item.name||'미상'} / ${item.modelName||'기재없음'}${memoStr}\n`; });
+            const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert(`[${dateKey}] 내용이 텍스트로 복사되었습니다!\n(카톡이나 밴드에 붙여넣기 하세요)`);
         }
 
         function updateMapMarkers() {
-            if (!clusterer) return; 
-            activeMarkers.forEach(obj => { if (obj.marker) kakao.maps.event.removeListener(obj.marker, 'click', obj.handler); });
+            if (!clusterer) return; activeMarkers.forEach(obj => { if (obj.marker) kakao.maps.event.removeListener(obj.marker, 'click', obj.handler); });
             activeMarkers = []; clusterer.clear(); let addrCounts = {}; const offsetBase = 0.00025; 
             const offsets = [[0,0], [offsetBase,0], [0,offsetBase], [-offsetBase,0], [0,-offsetBase], [offsetBase,offsetBase], [-offsetBase,offsetBase], [-offsetBase,-offsetBase], [offsetBase,-offsetBase]];
             
@@ -974,36 +924,24 @@
         function selectAll(type) {
             let dataArr = type === 'general' ? savedData : cnetData; let selArr = type === 'general' ? selectedGen : selectedCnet;
             const kw = (document.getElementById('globalSearchInput')?.value || '').trim().toLowerCase();
-            
-            if (!kw) { 
-                if (type === 'general') selectedGen = dataArr.map((_,i)=>i); else selectedCnet = dataArr.map((_,i)=>i); 
-            } else { 
-                dataArr.forEach((item, i) => { 
-                    if (!item) return;
-                    if (!selArr.includes(i) && (String(item.addr||'').toLowerCase().includes(kw) || String(item.asNum||'').toLowerCase().includes(kw) || String(item.name||'').toLowerCase().includes(kw) || String(item.tel||'').replace(/-/g,'').includes(kw.replace(/-/g,'')) || String(item.modelName||'').toLowerCase().includes(kw))) { selArr.push(i); } 
-                }); 
-            }
+            if (!kw) { if (type === 'general') selectedGen = dataArr.map((_,i)=>i); else selectedCnet = dataArr.map((_,i)=>i); } 
+            else { dataArr.forEach((item, i) => { if (!item) return; if (!selArr.includes(i) && (String(item.addr||'').toLowerCase().includes(kw) || String(item.asNum||'').toLowerCase().includes(kw) || String(item.name||'').toLowerCase().includes(kw) || String(item.tel||'').replace(/-/g,'').includes(kw.replace(/-/g,'')) || String(item.modelName||'').toLowerCase().includes(kw))) { selArr.push(i); } }); }
             save(); render();
         }
 
         function resetSelection(type) { if (type === 'general') selectedGen = []; else selectedCnet = []; save(); render(); }
         function deleteSelected(type) { if (confirm("선택 항목을 영구 삭제하시겠습니까?")) { if (type === 'general') { savedData = savedData.filter((_, i) => !selectedGen.includes(i)); selectedGen = []; } else { cnetData = cnetData.filter((_, i) => !selectedCnet.includes(i)); selectedCnet = []; } save(); render(); } }
         
-        // 🌟 타이핑 중 화면 초기화 방지를 위해 render() 호출 제거
         function saveMemo(type, idx, val) { if (type === 'general') savedData[idx].memo = val; else cnetData[idx].memo = val; save(); }
         function saveArchiveMemo(idx, val) { archiveData[idx].archiveMemo = val; save(); }
         
         function moveToTimeline(type, dayType) {
             let selArr = type === 'general' ? selectedGen : selectedCnet; let dataArr = type === 'general' ? savedData : cnetData;
             if (selArr.length === 0) return alert("이동할 항목을 선택해주세요.");
-            let targetDate = new Date(); 
-            if (dayType === 'tomorrow') targetDate.setDate(targetDate.getDate() + 1);
-            else if (dayType === 'dayafter') targetDate.setDate(targetDate.getDate() + 2);
-            
+            let targetDate = new Date(); if (dayType === 'tomorrow') targetDate.setDate(targetDate.getDate() + 1); else if (dayType === 'dayafter') targetDate.setDate(targetDate.getDate() + 2);
             let targetStr = getLocalDateString(targetDate);
             let itemsToArchive = selArr.map(idx => { let item = dataArr[idx]; item.completedDate = targetStr; item.source = type; return item; });
-            const sortedTargets = [...selArr].sort((a,b) => b-a); sortedTargets.forEach(idx => dataArr.splice(idx, 1));
-            archiveData.push(...itemsToArchive);
+            const sortedTargets = [...selArr].sort((a,b) => b-a); sortedTargets.forEach(idx => dataArr.splice(idx, 1)); archiveData.push(...itemsToArchive);
             if (type === 'general') selectedGen = []; else selectedCnet = []; save(); render();
         }
 
@@ -1016,72 +954,38 @@
             let route = `[출발] ${fixedStartAddr}\n`; let seq = 1; const addrGroups = {};
             selectedGen.forEach(idx => { if(!savedData[idx]) return; const key = savedData[idx].searchAddr || savedData[idx].addr; if (!addrGroups[key]) addrGroups[key] = { gen: 0, cnet: 0 }; addrGroups[key].gen++; });
             selectedCnet.forEach(idx => { if(!cnetData[idx]) return; const key = cnetData[idx].searchAddr || cnetData[idx].addr; if (!addrGroups[key]) addrGroups[key] = { gen: 0, cnet: 0 }; addrGroups[key].cnet++; });
-            for (const [key, counts] of Object.entries(addrGroups)) {
-                let badge = []; if (counts.gen > 0) badge.push(`일반 ${counts.gen}건`); if (counts.cnet > 0) badge.push(`씨넷 ${counts.cnet}건`);
-                let badgeStr = badge.length > 0 ? ` (${badge.join(', ')})` : ''; route += `${seq}. ${key}${badgeStr}\n`; seq++;
-            }
+            for (const [key, counts] of Object.entries(addrGroups)) { let badge = []; if (counts.gen > 0) badge.push(`일반 ${counts.gen}건`); if (counts.cnet > 0) badge.push(`씨넷 ${counts.cnet}건`); let badgeStr = badge.length > 0 ? ` (${badge.join(', ')})` : ''; route += `${seq}. ${key}${badgeStr}\n`; seq++; }
             route += `[도착] ${fixedStartAddr}`; document.getElementById('routeText').value = route;
         }
 
         function backupData() {
-            const data = {
-                Todo: savedData, CnetTodo: cnetData, Archive: archiveData,
-                AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos
-            };
-            const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url;
-            const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-            a.download = `YSOL_Backup_${dateStr}.json`;
-            a.click(); URL.revokeObjectURL(url);
+            const data = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos };
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"}); const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, ''); a.download = `YSOL_Backup_${dateStr}.json`; a.click(); URL.revokeObjectURL(url);
         }
 
         function exportToExcel() {
             if(typeof XLSX === 'undefined') return alert("엑셀 내보내기 라이브러리를 로드 중입니다. 잠시 후 다시 시도해주세요.");
             let wb = XLSX.utils.book_new();
-
-            const formatData = (arr) => arr.map(item => ({
-                '접수번호': item.asNum, '주소': item.addr, '고객명': item.name, '연락처': item.tel,
-                '모델명': item.modelName, '비용구분': item.costType, '증상/내용': item.content, '메모': item.memo || ''
-            }));
-
-            const formatArchive = (arr) => arr.map(item => ({
-                '완료일자': item.completedDate || '', '출처': item.source === 'cnet' ? '씨넷' : '일반',
-                '접수번호': item.asNum, '주소': item.addr, '고객명': item.name, '연락처': item.tel,
-                '모델명': item.modelName, '비용구분': item.costType, '완료메모': item.archiveMemo || ''
-            }));
-
+            const formatData = (arr) => arr.map(item => ({ '접수번호': item.asNum, '주소': item.addr, '고객명': item.name, '연락처': item.tel, '모델명': item.modelName, '비용구분': item.costType, '증상/내용': item.content, '메모': item.memo || '' }));
+            const formatArchive = (arr) => arr.map(item => ({ '완료일자': item.completedDate || '', '출처': item.source === 'cnet' ? '씨넷' : '일반', '접수번호': item.asNum, '주소': item.addr, '고객명': item.name, '연락처': item.tel, '모델명': item.modelName, '비용구분': item.costType, '완료메모': item.archiveMemo || '' }));
             let genWs = XLSX.utils.json_to_sheet(formatData(savedData)); XLSX.utils.book_append_sheet(wb, genWs, "일반대기열");
             let cnetWs = XLSX.utils.json_to_sheet(formatData(cnetData)); XLSX.utils.book_append_sheet(wb, cnetWs, "씨넷대기열");
             let arcWs = XLSX.utils.json_to_sheet(formatArchive(archiveData)); XLSX.utils.book_append_sheet(wb, arcWs, "완료일정");
-
             let dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, ''); XLSX.writeFile(wb, `YSOL_Data_Excel_${dateStr}.xlsx`);
         }
 
         function restoreData(event) {
-            const file = event.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            
+            const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
             reader.onload = function(e) {
-                let parsed;
+                let parsed; try { let cleanText = e.target.result.replace(/^\uFEFF/, '').trim(); parsed = JSON.parse(cleanText); } catch (err) { alert("⚠️ 파일 형식이 잘못되었습니다."); return; }
                 try {
-                    let cleanText = e.target.result.replace(/^\uFEFF/, '').trim();
-                    parsed = JSON.parse(cleanText);
-                } catch (err) { alert("⚠️ 파일 형식이 잘못되었습니다. (JSON 파싱 에러)"); return; }
-                
-                try {
-                    if (parsed.Todo) savedData = parsed.Todo.filter(item => item !== null);
-                    if (parsed.CnetTodo) cnetData = parsed.CnetTodo.filter(item => item !== null);
-                    if (parsed.Archive) archiveData = parsed.Archive.filter(item => item !== null);
-                    if (parsed.AddressAlias) addressAlias = parsed.AddressAlias;
-                    if (parsed.FixedAddr) fixedStartAddr = parsed.FixedAddr;
-                    if (parsed.DailyMemos) dailyMemos = parsed.DailyMemos;
-                    
-                    selectedGen = []; selectedCnet = []; save(); render(); 
-                    alert("✨ 시스템 데이터 복구 및 클라우드 동기화가 완벽하게 완료되었습니다!");
-                } catch (err2) { alert("⚠️ 오류 발생: " + err2.message); }
-            };
-            reader.readAsText(file, "UTF-8"); event.target.value = ''; 
+                    if (parsed.Todo) savedData = parsed.Todo.filter(item => item !== null); if (parsed.CnetTodo) cnetData = parsed.CnetTodo.filter(item => item !== null);
+                    if (parsed.Archive) archiveData = parsed.Archive.filter(item => item !== null); if (parsed.AddressAlias) addressAlias = parsed.AddressAlias;
+                    if (parsed.FixedAddr) fixedStartAddr = parsed.FixedAddr; if (parsed.DailyMemos) dailyMemos = parsed.DailyMemos;
+                    selectedGen = []; selectedCnet = []; save(); render(); alert("✨ 복구 완료!");
+                } catch (err2) { alert("⚠️ 오류: " + err2.message); }
+            }; reader.readAsText(file, "UTF-8"); event.target.value = ''; 
         }
 
         function openPrintWindow(title, tableRows) {
@@ -1099,18 +1003,10 @@
 
         function printArchiveDate(dateKey) {
             let items = archiveData.filter(d => (d.completedDate || '이전 완료건') === dateKey); if (items.length === 0) return;
-            let todayStr = getLocalDateString(new Date()); 
-            let tmrwObj = new Date(); tmrwObj.setDate(tmrwObj.getDate() + 1); let tmrwStr = getLocalDateString(tmrwObj);
-            let dayAfterObj = new Date(); dayAfterObj.setDate(dayAfterObj.getDate() + 2); let dayAfterStr = getLocalDateString(dayAfterObj);
-            
-            let isFuture = (dateKey === todayStr || dateKey === tmrwStr || dateKey === dayAfterStr); 
-            let titlePrefix = isFuture ? '작업 지시서' : '완료 보고서'; let checkMark = isFuture ? '□' : '☑';
+            let todayStr = getLocalDateString(new Date()); let tmrwObj = new Date(); tmrwObj.setDate(tmrwObj.getDate() + 1); let tmrwStr = getLocalDateString(tmrwObj); let dayAfterObj = new Date(); dayAfterObj.setDate(dayAfterObj.getDate() + 2); let dayAfterStr = getLocalDateString(dayAfterObj);
+            let isFuture = (dateKey === todayStr || dateKey === tmrwStr || dateKey === dayAfterStr); let titlePrefix = isFuture ? '작업 지시서' : '완료 보고서'; let checkMark = isFuture ? '□' : '☑';
             let title = `[${titlePrefix}] ${dateKey}`; let seq = 1; let tableRows = '';
-            
-            items.slice().reverse().forEach(item => {
-                let typeStr = item.source === 'cnet' ? '씨넷' : '일반';
-                tableRows += `<tr style="page-break-inside: avoid; page-break-after: auto;"><td style="text-align:center; padding:8px;"><b>${seq++}</b><br><span style="font-size:11px; color:#333;">[${typeStr}]</span></td><td style="padding:10px; line-height:1.5;"><b>[${escapeHTML(item.asNum)}]</b><br>[고객] ${escapeHTML(item.name)||'미상'} (${escapeHTML(item.tel)||'번호없음'})<br>[주소] <b>${escapeHTML(item.addr)}</b></td><td style="padding:10px; line-height:1.5;">[품목] <b>${escapeHTML(item.modelName)||'기재없음'}</b> (${escapeHTML(item.costType)||'미분류'})<br>[증상] ${escapeHTML(item.content)||''}<br><span style="font-size:11px; color:#333;">${item.archiveMemo ? '[메모] '+escapeHTML(item.archiveMemo) : ''}</span></td><td style="padding:10px; height:120px; vertical-align:top; color:#555;"></td><td style="text-align:center; font-size:18px;">${checkMark}</td></tr>`;
-            }); openPrintWindow(title, tableRows);
+            items.slice().reverse().forEach(item => { let typeStr = item.source === 'cnet' ? '씨넷' : '일반'; tableRows += `<tr style="page-break-inside: avoid; page-break-after: auto;"><td style="text-align:center; padding:8px;"><b>${seq++}</b><br><span style="font-size:11px; color:#333;">[${typeStr}]</span></td><td style="padding:10px; line-height:1.5;"><b>[${escapeHTML(item.asNum)}]</b><br>[고객] ${escapeHTML(item.name)||'미상'} (${escapeHTML(item.tel)||'번호없음'})<br>[주소] <b>${escapeHTML(item.addr)}</b></td><td style="padding:10px; line-height:1.5;">[품목] <b>${escapeHTML(item.modelName)||'기재없음'}</b> (${escapeHTML(item.costType)||'미분류'})<br>[증상] ${escapeHTML(item.content)||''}<br><span style="font-size:11px; color:#333;">${item.archiveMemo ? '[메모] '+escapeHTML(item.archiveMemo) : ''}</span></td><td style="padding:10px; height:120px; vertical-align:top; color:#555;"></td><td style="text-align:center; font-size:18px;">${checkMark}</td></tr>`; }); openPrintWindow(title, tableRows);
         }
 
         async function handleFiles(event) {
@@ -1121,7 +1017,6 @@
                     workbook.SheetNames.forEach(sName => {
                         const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sName], {header: 1});
                         let headerRowIdx = -1; let colMap = {};
-                        
                         for (let i = 0; i < Math.min(rows.length, 10); i++) {
                             if (!rows[i]) continue; const rowStr = rows[i].map(c => String(c||'').replace(/\s/g,'')).join('');
                             if (rowStr.includes('접수번호') && (rowStr.includes('주소') || rowStr.includes('품목'))) {
@@ -1136,53 +1031,34 @@
                                 }); break;
                             }
                         }
-                        
                         if (headerRowIdx !== -1) {
                             for (let r = headerRowIdx + 1; r < rows.length; r++) {
                                 let row = rows[r]; if (!row || row.length === 0) continue;
                                 let asNum = colMap.asNum !== undefined ? String(row[colMap.asNum]||'').trim() : ''; if (!asNum) continue;
                                 let addrBase = colMap.addr !== undefined ? String(row[colMap.addr]||'').trim() : ''; let dongho = colMap.dongho !== undefined ? String(row[colMap.dongho]||'').trim() : '';
                                 let addr = addrBase; if (dongho) addr += " " + dongho; if (!addr) continue;
-                                
                                 let costRaw = colMap.cost !== undefined ? String(row[colMap.cost]||'') : ''; let costType = costRaw.includes('유상') ? '유상' : '무상';
                                 let modelName = colMap.model !== undefined ? String(row[colMap.model]||'').trim() : '';
                                 let name = colMap.name !== undefined ? String(row[colMap.name]||'').trim() : '고객';
                                 let contentRaw = colMap.content !== undefined ? String(row[colMap.content]||'').trim() : '';
                                 let telRaw = colMap.tel !== undefined ? String(row[colMap.tel]||'').trim() : ''; let tel = formatPhoneNumber(telRaw);
-                                
                                 let dateStr = '';
-                                if (colMap.date !== undefined && row[colMap.date]) {
-                                    if (typeof row[colMap.date] === 'number') { dateStr = new Date(Math.round((row[colMap.date] - 25569) * 86400 * 1000)).toISOString().split('T')[0]; } 
-                                    else { 
-                                        let dStr = String(row[colMap.date]).trim(); let yStr = colMap.year !== undefined ? String(row[colMap.year]||'').trim() : '';
-                                        if (dStr.match(/^\d{4}[-./]/)) dateStr = dStr.replace(/\./g, '-'); else if (yStr && dStr) dateStr = yStr + "-" + dStr.replace(/\./g, '-'); else dateStr = dStr; 
-                                    }
-                                }
+                                if (colMap.date !== undefined && row[colMap.date]) { if (typeof row[colMap.date] === 'number') { dateStr = new Date(Math.round((row[colMap.date] - 25569) * 86400 * 1000)).toISOString().split('T')[0]; } else { let dStr = String(row[colMap.date]).trim(); let yStr = colMap.year !== undefined ? String(row[colMap.year]||'').trim() : ''; if (dStr.match(/^\d{4}[-./]/)) dateStr = dStr.replace(/\./g, '-'); else if (yStr && dStr) dateStr = yStr + "-" + dStr.replace(/\./g, '-'); else dateStr = dStr; } }
                                 dateStr = dateStr.replace(/\//g, '-').replace(/\./g, '-');
-                                
                                 let info = { source:'cnet', asNum, addr, searchTarget:addrBase, name, tel, modelName, content: contentRaw, costType, date: dateStr, memo: "" };
-                                if (!cnetData.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { SearchQueue.add(info, 'cnet'); } 
-                                else { ReportManager.addDuplicate(info.asNum, info.addr, info.name); }
+                                if (!cnetData.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { SearchQueue.add(info, 'cnet'); } else { ReportManager.addDuplicate(info.asNum, info.addr, info.name); }
                             }
                         } else {
                             let info = { source:'general', asNum:"", addr:"", name:"", content:"", date:"", tel:"", costType:"", modelName:"" }; 
-                            let sheetText = rows.map(r=>r.join(" ")).join(" \n");
-                            let fullContent = []; let tempTel = ""; let tempName = "";
-                            
+                            let sheetText = rows.map(r=>r.join(" ")).join(" \n"); let fullContent = []; let tempTel = ""; let tempName = "";
                             rows.forEach((row, r) => {
-                                let rowStr = row.join("").replace(/\s/g, "");
-                                if (rowStr.includes('처리기사') || rowStr.includes('담당기사') || rowStr.includes('배정기사') || rowStr.includes('기사명') || rowStr.includes('작성자') || rowStr.includes('보고자')) return;
-
+                                let rowStr = row.join("").replace(/\s/g, ""); if (rowStr.includes('처리기사') || rowStr.includes('담당기사') || rowStr.includes('배정기사') || rowStr.includes('기사명') || rowStr.includes('작성자') || rowStr.includes('보고자')) return;
                                 for (let c = 0; c < row.length; c++) {
                                     let cellRaw = String(row[c]||'').trim(); let key = cellRaw.replace(/\s/g,''); if (!key) continue;
                                     const getVal = () => { for(let i=c+1; i<row.length; i++) { if (row[i]) return String(row[i]).trim(); } if (rows[r+1] && rows[r+1][c]) return String(rows[r+1][c]).trim(); return ""; }; 
                                     let val = getVal();
-
                                     if (key.includes('접수번호') || key.includes('AS번호')) info.asNum = val; 
-                                    else if (key.includes('접수일') || key.includes('접수일자')) {
-                                        if (!isNaN(val) && Number(val) > 20000) info.date = new Date(Math.round((Number(val) - 25569) * 86400 * 1000)).toISOString().split('T')[0];
-                                        else info.date = val.replace(/\./g, '-').replace(/\//g, '-');
-                                    }
+                                    else if (key.includes('접수일') || key.includes('접수일자')) { if (!isNaN(val) && Number(val) > 20000) info.date = new Date(Math.round((Number(val) - 25569) * 86400 * 1000)).toISOString().split('T')[0]; else info.date = val.replace(/\./g, '-').replace(/\//g, '-'); }
                                     else if (key.includes('주소') || key.includes('방문지')) info.addr = val;
                                     else if (key.includes('모델') || key.includes('품목')) info.modelName = val; 
                                     else if (key.includes('비용구분') || key.includes('유/무상')) info.costType = val.includes('유상') ? '유상' : val.includes('무상') ? '무상' : val.replace(/[○●]/g,"");
@@ -1191,51 +1067,32 @@
                                     else if (key.includes('접수내용') || key.includes('증상') || key.includes('특이사항') || key.includes('기타사항') || key.includes('상세') || key.includes('원인')) { if (val && !fullContent.includes(val)) fullContent.push(`[${cellRaw}] ${val}`); }
                                 }
                             });
-                            
                             info.name = tempName || "미상"; info.tel = tempTel || "번호없음"; info.content = fullContent.join("\n");
                             if (!info.date) info.date = new Date().toISOString().split('T')[0];
                             if (!info.asNum) { let m = sheetText.match(/(?:AS)?\d{6,8}-\d{4,5}/i); info.asNum = m ? m[0].toUpperCase() : "미상-" + Math.floor(Math.random()*1000); }
-                            
-                            if (info.addr) { 
-                                info.searchTarget = info.addr; 
-                                if (!savedData.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { SearchQueue.add(info, 'general'); } 
-                                else { ReportManager.addDuplicate(info.asNum, info.addr, info.name); }
-                            }
+                            if (info.addr) { info.searchTarget = info.addr; if (!savedData.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { SearchQueue.add(info, 'general'); } else { ReportManager.addDuplicate(info.asNum, info.addr, info.name); } }
                         }
                     });
                 }
-                event.target.value = ""; 
-                if (SearchQueue.queue.length === 0) ReportManager.showIfAny(); 
+                event.target.value = ""; if (SearchQueue.queue.length === 0) ReportManager.showIfAny(); 
             } catch(e) { alert("⚠️ 시스템 에러(Excel 파싱): " + e.message); }
         }
 
         function processWebInput() {
             try {
                 ReportManager.clear();
-                const text = document.getElementById('webInputText').value; 
-                if (!text.trim()) return alert("텍스트를 먼저 붙여넣어 주세요.");
-                
-                let splitRegex = /\[Web발신\]|(?=\d{4}년\s*\d{2}월\s*\d{2}일\s*접수건)|---+/i;
-                let blocks = text.split(splitRegex).filter(b => b.trim().length > 10); 
-                
+                const text = document.getElementById('webInputText').value; if (!text.trim()) return alert("텍스트를 먼저 붙여넣어 주세요.");
+                let splitRegex = /\[Web발신\]|(?=\d{4}년\s*\d{2}월\s*\d{2}일\s*접수건)|---+/i; let blocks = text.split(splitRegex).filter(b => b.trim().length > 10); 
                 blocks.forEach(block => {
                     let info = { source: 'general', asNum: "", addr: "", searchTarget: "", name: "", content: "", memo: "", date: "", tel: "", costType: "", modelName: "" };
-                    let dateMatch = block.match(/(\d{4})년\s*(\d{2})월\s*(\d{2})일/); 
-                    if (dateMatch) { info.date = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`; } else { info.date = new Date().toISOString().split('T')[0]; }
-                    
+                    let dateMatch = block.match(/(\d{4})년\s*(\d{2})월\s*(\d{2})일/); if (dateMatch) { info.date = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`; } else { info.date = new Date().toISOString().split('T')[0]; }
                     const extractData = (keyword) => { let match = block.match(new RegExp(`(?:[●\\-*■▶]\\s*)?${keyword}\\s*[:\\-]?\\s*([\\s\\S]*?)(?=\\n\\s*[●\\-*■▶]|$)`)); return match ? match[1].trim() : ""; };
-                    
                     info.name = extractData("고객명") || extractData("성명"); info.addr = extractData("주소") || extractData("방문지"); info.searchTarget = info.addr;
                     info.tel = formatPhoneNumber(extractData("연락처") || extractData("대표번호") || extractData("전화") || extractData("휴대폰"));
                     info.modelName = extractData("모델명") || extractData("품목"); info.costType = extractData("유,무상구분") || extractData("유/무상구분") || extractData("운영사\\[유/무상\\]") || extractData("비용구분");
                     info.asNum = extractData("접수번호") || extractData("AS번호") || "WEB-" + Date.now().toString().slice(-6) + Math.floor(Math.random()*10);
-                    
                     info.content = ((extractData("접수내용") || extractData("증상")) + (extractData("특이사항") ? "\n[특이사항] " + extractData("특이사항") : "") + (extractData("운영사업자") ? "\n[운영사] " + extractData("운영사업자") : "")).trim();
-                    
-                    if (info.addr) { 
-                        const isDup = savedData.some(d => d.asNum === info.asNum) || archiveData.some(d => d.asNum === info.asNum); 
-                        if (!isDup) { SearchQueue.add(info, 'general'); } else { ReportManager.addDuplicate(info.asNum, info.addr, info.name); } 
-                    } else { ReportManager.addFailed("주소 누락 (WEB 텍스트)", info.asNum); }
+                    if (info.addr) { const isDup = savedData.some(d => d.asNum === info.asNum) || archiveData.some(d => d.asNum === info.asNum); if (!isDup) { SearchQueue.add(info, 'general'); } else { ReportManager.addDuplicate(info.asNum, info.addr, info.name); } } else { ReportManager.addFailed("주소 누락 (WEB 텍스트)", info.asNum); }
                 });
                 closeWebModal(); if (SearchQueue.queue.length === 0) ReportManager.showIfAny();
             } catch(e) { alert("⚠️ 시스템 에러(WEB 추출): " + e.message); }
