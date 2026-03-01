@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>Y-Solution v1.8.20 (Cloud Master - Final)</title>
+    <title>Y-Solution v1.8.22 (Cloud Master - Final)</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -77,7 +77,7 @@
         @keyframes blink { 0% {opacity: 1;} 50% {opacity: 0.6;} 100% {opacity: 1;} }
 
         #routeBox { 
-            position: absolute; top: 10px; right: 10px; width: 260px; 
+            position: absolute; top: 10px; right: 10px; width: 280px; 
             background: rgba(255,255,255,0.95); border-radius: 10px; 
             box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000; padding: 10px;
             transition: transform 0.3s ease-in-out; transform: translateX(0); 
@@ -189,9 +189,10 @@
                         <button class="btn-main" style="background:#8e44ad; width:100%;" onclick="saveToCloud(true)">☁️ 클라우드 수동 이관 (최초 1회)</button>
                     </div>
                     <div style="display:flex; gap:4px; margin-top:4px;">
-                        <button class="btn-main" style="background:#fd7e14;" onclick="backupData()">PC 데이터 백업</button>
-                        <label class="btn-main" style="background:#20c997; text-align:center; cursor:pointer;">
-                            복구 <input type="file" style="display:none;" accept=".json" onchange="restoreData(event)">
+                        <button class="btn-main" style="background:#20c997; flex:1.2;" onclick="exportToExcel()" title="구글 시트와 동일한 엑셀 양식으로 저장합니다">📊 엑셀 시트 백업</button>
+                        <button class="btn-main" style="background:#fd7e14; flex:1;" onclick="backupData()" title="시스템 원상 복구용 JSON 파일">JSON 백업</button>
+                        <label class="btn-main" style="background:#6c757d; flex:1; text-align:center; cursor:pointer;" title="JSON 파일을 불러와 시스템을 복구합니다">
+                            JSON 복구 <input type="file" style="display:none;" accept=".json" onchange="restoreData(event)">
                         </label>
                     </div>
                 </div>
@@ -321,7 +322,7 @@
         // 🌟 완벽하게 삽입된 구글 앱스 스크립트(GAS) 발급 API URL
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec";
 
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.20' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.22' };
 
         const StorageManager = {
             getKey: (key) => APP_CONFIG.PREFIX + key,
@@ -341,7 +342,6 @@
             }
         };
 
-        // 🌟 필수 누락되었던 escapeHTML 함수 부활 (화면 렌더링 시 텍스트 깨짐 방지)
         function escapeHTML(str) {
             if (!str) return '';
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
@@ -366,10 +366,7 @@
         function hideLoader() { document.getElementById('loader').style.display = 'none'; }
 
         async function fetchFromCloud() {
-            if (!GAS_API_URL || GAS_API_URL === "YOUR_WEB_APP_URL_HERE") {
-                console.log("API URL이 설정되지 않아 로컬 모드로 작동합니다.");
-                return;
-            }
+            if (!GAS_API_URL || GAS_API_URL === "YOUR_WEB_APP_URL_HERE") return;
             showLoader();
             try {
                 let response = await fetch(GAS_API_URL);
@@ -384,6 +381,7 @@
                     if (json.FixedAddr) fixedStartAddr = json.FixedAddr;
                     if (json.DailyMemos) dailyMemos = json.DailyMemos;
                     
+                    // 로컬 스토리지 업데이트
                     StorageManager.set('Todo', savedData);
                     StorageManager.set('CnetTodo', cnetData);
                     StorageManager.set('Archive', archiveData);
@@ -391,9 +389,7 @@
                     StorageManager.set('FixedAddr', fixedStartAddr);
                     StorageManager.set('DailyMemos', dailyMemos);
                 }
-            } catch(e) {
-                console.log("네트워크 에러: 로컬 데이터를 사용합니다.", e);
-            }
+            } catch(e) { console.log("네트워크 에러: 로컬 데이터를 사용합니다.", e); }
             hideLoader();
         }
 
@@ -414,11 +410,27 @@
                     method: 'POST',
                     body: JSON.stringify(payload)
                 });
-                if(isManual) alert("☁️ 현재 PC 데이터가 클라우드에 완벽하게 덮어씌워졌습니다!\n이제 핸드폰 앱에서 동일하게 확인 가능합니다.");
+                if(isManual) alert("☁️ 현재 PC 데이터가 클라우드에 완벽하게 덮어씌워졌습니다!");
             } catch(e) {
                 if(isManual) alert("⚠️ 통신 에러: 네트워크 상태를 확인해주세요.");
             }
             if(isManual) hideLoader();
+        }
+
+        // 🌟 v1.8.22: 심장(save) 함수 완벽 복구
+        // 브라우저에 즉시 저장 후, 2초 뒤 클라우드에 조용히 동기화
+        function save() {
+            StorageManager.set('Todo', savedData);
+            StorageManager.set('CnetTodo', cnetData);
+            StorageManager.set('Archive', archiveData);
+            StorageManager.set('AddressAlias', addressAlias);
+            StorageManager.set('FixedAddr', fixedStartAddr);
+            StorageManager.set('DailyMemos', dailyMemos);
+
+            clearTimeout(cloudSaveTimer);
+            cloudSaveTimer = setTimeout(() => {
+                saveToCloud(false);
+            }, 2000);
         }
 
         const ReportManager = {
@@ -514,7 +526,7 @@
             info.lat = lat; info.lng = lng; info.searchAddr = searchAddr;
             let targetArr = type === 'general' ? savedData : cnetData;
             if (isEdit && oldIdx > -1) { targetArr[oldIdx] = info; } else { targetArr.unshift(info); }
-            if (shouldSave) save();
+            if (shouldSave) save(); // 이제 save()가 클라우드로 정상 연동됩니다
         }
 
         function getLocalDateString(dateObj) {
@@ -1032,6 +1044,7 @@
             route += `[도착] ${fixedStartAddr}`; document.getElementById('routeText').value = route;
         }
 
+        // 🌟 시스템 원상복구용 JSON 내보내기 (기존 유지)
         function backupData() {
             const data = {
                 Todo: savedData, CnetTodo: cnetData, Archive: archiveData,
@@ -1045,6 +1058,36 @@
             a.click(); URL.revokeObjectURL(url);
         }
 
+        // 🌟 v1.8.22: 엑셀 시트 양식 내보내기 (신규 기능)
+        function exportToExcel() {
+            if(typeof XLSX === 'undefined') return alert("엑셀 내보내기 라이브러리를 로드 중입니다. 잠시 후 다시 시도해주세요.");
+            let wb = XLSX.utils.book_new();
+
+            const formatData = (arr) => arr.map(item => ({
+                '접수번호': item.asNum, '주소': item.addr, '고객명': item.name, '연락처': item.tel,
+                '모델명': item.modelName, '비용구분': item.costType, '증상/내용': item.content, '메모': item.memo || ''
+            }));
+
+            const formatArchive = (arr) => arr.map(item => ({
+                '완료일자': item.completedDate || '', '출처': item.source === 'cnet' ? '씨넷' : '일반',
+                '접수번호': item.asNum, '주소': item.addr, '고객명': item.name, '연락처': item.tel,
+                '모델명': item.modelName, '비용구분': item.costType, '완료메모': item.archiveMemo || ''
+            }));
+
+            let genWs = XLSX.utils.json_to_sheet(formatData(savedData));
+            XLSX.utils.book_append_sheet(wb, genWs, "일반대기열");
+
+            let cnetWs = XLSX.utils.json_to_sheet(formatData(cnetData));
+            XLSX.utils.book_append_sheet(wb, cnetWs, "씨넷대기열");
+
+            let arcWs = XLSX.utils.json_to_sheet(formatArchive(archiveData));
+            XLSX.utils.book_append_sheet(wb, arcWs, "완료일정");
+
+            let dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            XLSX.writeFile(wb, `YSOL_Data_Excel_${dateStr}.xlsx`);
+        }
+
+        // 🌟 v1.8.22: 복구 로직 강화 (복구 즉시 save() 호출하여 클라우드 덮어쓰기)
         function restoreData(event) {
             const file = event.target.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -1067,15 +1110,15 @@
                     if (parsed.FixedAddr) fixedStartAddr = parsed.FixedAddr;
                     if (parsed.DailyMemos) dailyMemos = parsed.DailyMemos;
                     
-                    selectedGen = []; 
-                    selectedCnet = [];
+                    selectedGen = []; selectedCnet = [];
 
+                    // 🌟 복구한 데이터를 로컬에 저장하고 클라우드에 덮어쓰기 명령 전송!
                     save(); 
                     render(); 
-                    alert("✨ 시스템 데이터 복구가 완벽하게 완료되었습니다!");
+                    alert("✨ 시스템 데이터 복구 및 클라우드 동기화가 완벽하게 완료되었습니다!");
                 } catch (err2) {
                     console.error("렌더링 에러 상세내역:", err2);
-                    alert("⚠️ 데이터는 성공적으로 읽었으나, 화면을 그리는 중 문제가 발생했습니다.\n\n오류 내용: " + err2.message);
+                    alert("⚠️ 오류 발생: " + err2.message);
                 }
             };
             
