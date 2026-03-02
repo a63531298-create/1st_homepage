@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Y-Solution Mobile v1.8.30</title>
+    <title>Y-Solution Mobile v1.8.31</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -38,7 +38,6 @@
         .progress-memo { font-size: 11px; font-weight: bold; color: #856404; margin-top: 6px; background: #fff3cd; padding: 8px; border-radius: 6px; border-left: 3px solid #ffeeba; white-space: pre-wrap; line-height: 1.4; }
         .archive-date-header { font-size: 14px; font-weight: bold; color: #111; padding: 10px 12px; background: #e9ecef; border-radius: 6px; margin: 15px 0 10px 0; border-left: 4px solid #6c757d; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
 
-        /* 모바일 순서 변경 버튼 전용 CSS */
         .mobile-move-btn { padding: 4px 12px; font-size: 12px; font-weight: bold; background: #e9ecef; border: 1px solid #ced4da; border-radius: 4px; color: #495057; cursor: pointer; }
         .mobile-move-btn:active { background: #ced4da; }
 
@@ -211,7 +210,7 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec"; 
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.30' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.31' };
 
         const StorageManager = {
             getKey: (key) => APP_CONFIG.PREFIX + key,
@@ -310,22 +309,34 @@
             menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
         }
 
-        // 🌟 네이버 지도 딥링크 직접 호출 엔진
-        function openNaverMap(addr, event) {
+        // 🌟 내비게이션 검색용 '주소 클리너' (동/호수 방해물 자동 제거)
+        function getCleanAddress(item) {
+            let addr = item.searchTarget || item.addr;
+            if (!addr) return "";
+            
+            addr = addr.replace(/\s*[a-zA-Z가-힣0-9]+동\s*\d+호.*$/, '');
+            addr = addr.replace(/\s*\d+동\s*$/, '');
+            addr = addr.replace(/\s+[1-9]\d{2,}-\d{3,}.*$/, ''); 
+            
+            return addr.trim();
+        }
+
+        // 🌟 네이버 지도 딥링크 직접 호출 엔진 (동호수 절단 버전)
+        function openNaverMap(type, idx, event) {
             event.stopPropagation(); // 팝업창 뜨는 것 방지
-            if (!addr) return alert("주소가 없습니다.");
             
-            let encodedAddr = encodeURIComponent(addr);
+            let dataArr = type === 'general' ? savedData : type === 'cnet' ? cnetData : archiveData;
+            let item = dataArr[idx];
+            if (!item) return;
+
+            let cleanAddr = getCleanAddress(item);
+            if (!cleanAddr) return alert("주소가 없습니다.");
+            
+            let encodedAddr = encodeURIComponent(cleanAddr);
             let appUrl = `nmap://search?query=${encodedAddr}&appname=ysolution`;
-            let webUrl = `https://m.map.naver.com/search2/search.naver?query=${encodedAddr}`;
             
-            // 1. 네이버 지도 앱 강제 호출
             window.location.href = appUrl;
-            
-            // 2. 폰에 네이버 앱이 없을 경우를 대비한 안전장치 (0.5초 뒤 모바일 웹페이지로 연결)
-            setTimeout(() => {
-                window.open(webUrl, '_blank');
-            }, 500);
+            setTimeout(() => { window.open(`https://m.map.naver.com/search2/search.naver?query=${encodedAddr}`, '_blank'); }, 500);
         }
 
         function renderViews() {
@@ -346,7 +357,7 @@
                     html += `
                         <div class="list-item ${cssClass}" onclick="openActionSheet('${type}', ${idx}, '${item.asNum}')">
                             <span class="as-num">${type==='cnet'?'[씨넷]':'[일반]'} ${item.asNum} ${pinWarning}</span>
-                            <span class="addr-text" onclick="openNaverMap('${item.addr}', event)" style="color:#0056b3; cursor:pointer;">🗺️ ${item.addr} <span style="font-size:10px; font-weight:normal; text-decoration:underline; color:#666;">(네비)</span></span>
+                            <span class="addr-text" onclick="openNaverMap('${type}', ${idx}, event)" style="color:#0056b3; cursor:pointer;">🗺️ ${item.addr} <span style="font-size:10px; font-weight:normal; text-decoration:underline; color:#666;">(네비)</span></span>
                             <div class="info-text">👤 ${item.name} | ${phoneLink}</div>
                             <div class="info-text" style="color:#444;">🏷️ ${item.modelName}</div>
                             ${contentHtml}
@@ -417,7 +428,7 @@
                     html += `
                         <div class="list-item archive" onclick="openActionSheet('archive', ${obj.idx}, '${item.asNum}')">
                             <span class="as-num">${srcTag} ${item.asNum}</span>
-                            <span class="addr-text" onclick="openNaverMap('${item.addr}', event)" style="color:#0056b3; cursor:pointer;">🗺️ ${item.addr} <span style="font-size:10px; font-weight:normal; text-decoration:underline; color:#666;">(네비)</span></span>
+                            <span class="addr-text" onclick="openNaverMap('archive', ${obj.idx}, event)" style="color:#0056b3; cursor:pointer;">🗺️ ${item.addr} <span style="font-size:10px; font-weight:normal; text-decoration:underline; color:#666;">(네비)</span></span>
                             <div class="info-text">👤 ${item.name} | ${phoneLink}</div>
                             <div class="info-text" style="color:#444;">🏷️ ${item.modelName}</div>
                             ${contentHtml}
@@ -450,16 +461,7 @@
         function callNaverFromMenu() {
             let type = document.getElementById('actionType').value; 
             let idx = parseInt(document.getElementById('actionIdx').value);
-            let item = type === 'general' ? savedData[idx] : type === 'cnet' ? cnetData[idx] : archiveData[idx];
-            
-            if(item && item.addr) {
-                let encodedAddr = encodeURIComponent(item.addr);
-                let appUrl = `nmap://search?query=${encodedAddr}&appname=ysolution`;
-                window.location.href = appUrl;
-                setTimeout(() => window.open(`https://m.map.naver.com/search2/search.naver?query=${encodedAddr}`, '_blank'), 500);
-            } else { 
-                alert('해당 항목에 주소가 없습니다.'); 
-            }
+            openNaverMap(type, idx, { stopPropagation: () => {} });
             closeActionSheet();
         }
 
