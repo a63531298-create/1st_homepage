@@ -322,7 +322,7 @@
         }
 
         // 🌟 네이버 지도 딥링크 직접 호출 엔진 (동호수 절단 버전)
-        function openNaverMap(type, idx, event) {
+       function openNaverMap(type, idx, event) {
             event.stopPropagation(); // 팝업창 뜨는 것 방지
             
             let dataArr = type === 'general' ? savedData : type === 'cnet' ? cnetData : archiveData;
@@ -334,11 +334,26 @@
             
             let encodedAddr = encodeURIComponent(cleanAddr);
             let appUrl = `nmap://search?query=${encodedAddr}&appname=ysolution`;
+            let webUrl = `https://m.map.naver.com/search2/search.naver?query=${encodedAddr}`;
             
+            // 클릭한 시간 기록
+            let clickedAt = +new Date();
+            
+            // 1. 네이버 지도 앱 강제 호출
             window.location.href = appUrl;
-            setTimeout(() => { window.open(`https://m.map.naver.com/search2/search.naver?query=${encodedAddr}`, '_blank'); }, 500);
+            
+            // 2. 스마트 안전장치 (눈치껏 웹창 띄우기 취소)
+            setTimeout(() => {
+                // document.hidden: 앱이 켜져서 현재 웹 화면이 뒤로 숨겨졌는가?
+                // 시간 체크: 앱 전환으로 브라우저가 잠시 멈춰서 1초 이상 지났는가?
+                if (document.hidden || (+new Date() - clickedAt > 1000)) {
+                    return; // 앱이 켜졌으니 여기서 로직 종료 (웹창 안 띄움!)
+                }
+                
+                // 앱이 안 켜지고 그대로 화면에 머물러 있을 때만 웹 브라우저 실행
+                window.open(webUrl, '_blank');
+            }, 500);
         }
-
         function renderViews() {
             const kw = document.getElementById('globalSearchInput').value.trim().toLowerCase();
             
@@ -743,3 +758,4 @@
     </script>
 </body>
 </html>
+
