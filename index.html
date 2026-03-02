@@ -329,7 +329,7 @@
             return addr.trim();
         }
 
-        // 🌟 네이버 지도 딥링크 직접 호출 엔진 (앱 실행 시 웹 팝업 완벽 차단)
+       // 🌟 네이버 지도 딥링크 호출 엔진 (유령 웹창 100% 차단 로직 장착)
         function openNaverMap(type, idx, event) {
             event.stopPropagation(); // 팝업창 뜨는 것 방지
             
@@ -344,16 +344,25 @@
             let appUrl = `nmap://search?query=${encodedAddr}&appname=ysolution`;
             let webUrl = `https://m.map.naver.com/search2/search.naver?query=${encodedAddr}`;
             
-            let clickedAt = +new Date();
-            
-            // 1. 네이버 지도 앱 강제 호출
+            // 1. 앱 실행 신호 쏘기
             window.location.href = appUrl;
             
-            // 2. 스마트 안전장치 (앱이 켜졌으면 웹창 안 띄움)
-            setTimeout(() => {
-                if (document.hidden || (+new Date() - clickedAt > 1000)) return; 
-                window.open(webUrl, '_blank');
-            }, 500);
+            // 2. 웹창 띄우기 시한폭탄 설정 (1.5초 딜레이)
+            let fallbackTimer = setTimeout(() => {
+                // 1.5초 뒤에도 여전히 이 화면이 떠있을 때만(앱이 안 켜졌을 때만) 웹창 실행
+                if (!document.hidden) {
+                    window.open(webUrl, '_blank');
+                }
+            }, 1500);
+
+            // 3. 앱이 켜지면서 우리 화면이 뒤로 넘어가는 즉시! 시한폭탄(타이머) 폭파
+            const handleVisibility = () => {
+                if (document.hidden) {
+                    clearTimeout(fallbackTimer); // 웹창 팝업 강제 취소
+                    document.removeEventListener('visibilitychange', handleVisibility);
+                }
+            };
+            document.addEventListener('visibilitychange', handleVisibility);
         }
 
         function renderViews() {
@@ -760,3 +769,4 @@
     </script>
 </body>
 </html>
+
