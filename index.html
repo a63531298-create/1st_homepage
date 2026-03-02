@@ -309,14 +309,26 @@
             menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
         }
 
-        // 🌟 티맵 맞춤형 주소 클리너
+       // 🌟 티맵 맞춤형 주소 클리너 (PC가 자른 주소 무시하고 원본에서 동 번호 구출!)
         function getCleanAddress(item) {
-            let addr = item.searchTarget || item.addr;
-            if (!addr) return "";
+            // searchTarget을 버리고, 무조건 동호수가 살아있는 원본(item.addr)을 가져옴
+            let rawAddr = item.addr;
+            if (!rawAddr) return "";
 
+            // 1. 현장명 사전 우선 검사
             for (const [key, val] of Object.entries(addressAlias)) {
-                if (addr.includes(key)) return val;
+                if (rawAddr.includes(key)) return val;
             }
+            
+            // 2. "105동 1302호" -> "105동"만 남기기
+            rawAddr = rawAddr.replace(/([a-zA-Z가-힣0-9]+동)\s*\d+호.*$/, '$1');
+            
+            // 3. "103-901" 또는 띄어쓰기 없는 "자이라젠느103-901" -> " 103동"으로 변환
+            // (지번 '12-1' 보호: 앞 숫자가 무조건 3자리~4자리일 때만 아파트 동으로 인식)
+            rawAddr = rawAddr.replace(/(?:\s*)([1-9]\d{2,3})-(\d{3,4}).*$/, ' $1동');
+            
+            return rawAddr.trim();
+        }
             
             addr = addr.replace(/([a-zA-Z가-힣0-9]+동)\s*\d+호.*$/, '$1');
             addr = addr.replace(/\s+([1-9]\d{0,3})-(\d{3,4})\s*$/, ' $1동');
@@ -782,3 +794,4 @@
     </script>
 </body>
 </html>
+
