@@ -400,18 +400,30 @@
             if (card) openActionSheet(card.dataset.type, parseInt(card.dataset.idx), card.dataset.asnum);
         }
 
+        // 🌟 [버그 수정] 일정 순서 변경 함수 (화면 역순 렌더링을 고려한 스마트 스와프)
         function moveArchiveUpMobile(idx, event) {
             event.stopPropagation();
+            // 화면에서 "위로(🔼)" 간다는 것은, 배열(시간순)에서는 더 나중(+1)으로 이동한다는 뜻.
             if (idx < archiveData.length - 1 && archiveData[idx].completedDate === archiveData[idx+1].completedDate) {
-                [archiveData[idx], archiveData[idx+1]] = [archiveData[idx+1], archiveData[idx]];
+                let temp = archiveData[idx];
+                archiveData[idx] = archiveData[idx+1];
+                archiveData[idx+1] = temp;
                 save(); renderViews();
+            } else {
+                alert("같은 날짜 그룹의 맨 첫 번째 순서입니다.");
             }
         }
+
         function moveArchiveDownMobile(idx, event) {
             event.stopPropagation();
+            // 화면에서 "아래로(🔽)" 간다는 것은, 배열(시간순)에서는 더 이전(-1)으로 이동한다는 뜻.
             if (idx > 0 && archiveData[idx].completedDate === archiveData[idx-1].completedDate) {
-                [archiveData[idx], archiveData[idx-1]] = [archiveData[idx-1], archiveData[idx]];
+                let temp = archiveData[idx];
+                archiveData[idx] = archiveData[idx-1];
+                archiveData[idx-1] = temp;
                 save(); renderViews();
+            } else {
+                alert("같은 날짜 그룹의 맨 마지막 순서입니다.");
             }
         }
 
@@ -798,3 +810,4 @@
     </script>
 </body>
 </html>
+
