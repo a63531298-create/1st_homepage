@@ -358,7 +358,10 @@
                     let phoneLink = item.tel ? `<a href="tel:${escapeHTML(item.tel)}" style="color:#007bff; text-decoration:none; font-weight:bold; padding:2px;" onclick="event.stopPropagation()">📞 ${escapeHTML(item.tel)}</a>` : '📞 없음';
                     let contentHtml = `<div class="content-box">📄 증상: ${escapeHTML(item.content || '내용 없음')}</div>`;
                     let memoHtml    = item.memo ? `<div class="progress-memo">💡 [진행 메모] ${escapeHTML(item.memo)}</div>` : '';
-                    let pinWarning  = !item.lat ? `<span style="background:#dc3545; color:white; font-size:10px; padding:2px 4px; border-radius:4px; margin-left:4px;">⚠️핀누락</span>` : '';
+                   let pinWarning  = !item.lat ? `<span style="background:#dc3545; color:white; font-size:10px; padding:2px 4px; border-radius:4px; margin-left:4px;">⚠️핀누락</span>` : '';
+                    
+                    // 🌟 1. 유무상 뱃지 생성 로직 추가 (무상은 초록, 유상은 빨강)
+                    let costBadge = item.costType ? `<span style="font-weight:bold; color:${item.costType.includes('무상') ? '#28a745' : '#dc3545'};">[${escapeHTML(item.costType)}]</span> ` : '';
                     
                     // 🌟 [패치 2] D-Day 계산 시 NaN 뜨는 에러 방지
                     let dDayHtml = '';
@@ -375,7 +378,7 @@
                             <span class="as-num">${type==='cnet'?'[씨넷]':'[일반]'} ${escapeHTML(item.asNum)} ${pinWarning} ${dDayHtml}</span>
                             <span class="addr-text tmap-link" data-idx="${idx}" data-type="${type}" style="color:#0056b3; cursor:pointer;">🧭 ${escapeHTML(item.addr)} <span style="font-size:10px; font-weight:normal; text-decoration:underline; color:#666;">(티맵)</span></span>
                             <div class="info-text">👤 ${escapeHTML(item.name)} | ${phoneLink}</div>
-                            <div class="info-text" style="color:#444;">🏷️ ${escapeHTML(item.modelName)}</div>
+                            <div class="info-text" style="color:#444;">${costBadge}🏷️ ${escapeHTML(item.modelName)}</div>
                             ${contentHtml}${memoHtml}
                         </div>`;
                 });
@@ -450,12 +453,15 @@
                     let contentHtml = `<div class="content-box">📄 증상: ${escapeHTML(item.content || '내용 없음')}</div>`;
                     let memoHtml    = item.archiveMemo ? `<div class="progress-memo" style="border-left-color:#ff4757; background:#fff0f0; color:#d63031;">📝 [완료 메모] ${escapeHTML(item.archiveMemo)}</div>` : '';
                     let srcTag = item.source === 'cnet' ? '<span style="color:#ff4757;">[씨넷]</span>' : '<span style="color:#0056b3;">[일반]</span>';
+                    
+                    // 🌟 1. 유무상 뱃지 생성 로직 추가
+                    let costBadge = item.costType ? `<span style="font-weight:bold; color:${item.costType.includes('무상') ? '#28a745' : '#dc3545'};">[${escapeHTML(item.costType)}]</span> ` : '';
                     html += `
                         <div class="list-item archive" data-idx="${obj.idx}" data-type="archive" data-asnum="${escapeHTML(item.asNum)}">
                             <span class="as-num">${srcTag} ${escapeHTML(item.asNum)}</span>
                             <span class="addr-text tmap-link" data-idx="${obj.idx}" data-type="archive" style="color:#0056b3; cursor:pointer;">🧭 ${escapeHTML(item.addr)} <span style="font-size:10px; font-weight:normal; text-decoration:underline; color:#666;">(티맵)</span></span>
                             <div class="info-text">👤 ${escapeHTML(item.name)} | ${phoneLink}</div>
-                            <div class="info-text" style="color:#444;">🏷️ ${escapeHTML(item.modelName)}</div>
+                            <div class="info-text" style="color:#444;">${costBadge}🏷️ ${escapeHTML(item.modelName)}</div> ${escapeHTML(item.modelName)}</div>
                             ${contentHtml}${memoHtml}
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; border-top:1px dashed #ddd; padding-top:8px;">
                                 <span style="font-size:11px; color:#777; font-weight:bold;">🔄 방문 순서 조정</span>
@@ -810,4 +816,5 @@
     </script>
 </body>
 </html>
+
 
