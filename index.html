@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Y-Solution Mobile v1.8.33</title>
+    <title>Y-Solution Mobile v1.8.35</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -210,7 +210,7 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec"; 
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.33' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.35' };
 
         const StorageManager = {
             getKey: (key) => APP_CONFIG.PREFIX + key,
@@ -309,30 +309,24 @@
             menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
         }
 
-        // 🌟 티맵 맞춤형 주소 클리너 (동호수 절단 및 현장명 사전 처리)
+        // 🌟 티맵 맞춤형 주소 클리너
         function getCleanAddress(item) {
             let addr = item.searchTarget || item.addr;
             if (!addr) return "";
 
-            // 1. 현장명 사전 우선 검사 (화성4차 서희 -> 실제 지번 등)
             for (const [key, val] of Object.entries(addressAlias)) {
                 if (addr.includes(key)) return val;
             }
             
-            // 2. 일반 아파트 동호수 똑똑하게 자르기 (동은 남김)
-            // "105동 1302호" -> "105동"만 남기기
             addr = addr.replace(/([a-zA-Z가-힣0-9]+동)\s*\d+호.*$/, '$1');
-            
-            // "103-901" -> "103동"으로 변환
-            // (지번 '12-1' 보호: 뒤에 3~4자리 숫자가 올 때만 아파트로 간주)
             addr = addr.replace(/\s+([1-9]\d{0,3})-(\d{3,4})\s*$/, ' $1동');
             
             return addr.trim();
         }
 
-        // 🌟 티맵 딥링크 호출 엔진 (v1.8.33 - 유령 웹창 100% 차단 탑재)
+        // 🌟 티맵 딥링크 호출 엔진 (유령 웹창 100% 차단)
         function openTmap(type, idx, event) {
-            event.stopPropagation(); // 팝업창 뜨는 것 방지
+            event.stopPropagation();
             
             let dataArr = type === 'general' ? savedData : type === 'cnet' ? cnetData : archiveData;
             let item = dataArr[idx];
@@ -342,25 +336,19 @@
             if (!cleanAddr) return alert("주소가 없습니다.");
             
             let encodedAddr = encodeURIComponent(cleanAddr);
-            
-            // 티맵 전용 URL
             let appUrl = `tmap://search?name=${encodedAddr}`;
-            // 백업용 네이버 웹 지도 URL (티맵이 폰에 없을 경우)
             let webUrl = `https://m.map.naver.com/search2/search.naver?query=${encodedAddr}`;
             
             let clickedAt = +new Date();
             
-            // 1. 티맵 앱 강제 호출
             window.location.href = appUrl;
             
-            // 2. 스마트 안전장치 (앱이 성공적으로 켜졌으면 웹창 안 띄움)
             let fallbackTimer = setTimeout(() => {
                 if (!document.hidden && (+new Date() - clickedAt < 2000)) {
                     window.open(webUrl, '_blank');
                 }
             }, 1500);
 
-            // 3. 화면이 뒤로 넘어가는 순간 타이머 폭파
             const handleVisibility = () => {
                 if (document.hidden) {
                     clearTimeout(fallbackTimer);
@@ -372,6 +360,12 @@
 
         function renderViews() {
             const kw = document.getElementById('globalSearchInput').value.trim().toLowerCase();
+            
+            // 🌟 오늘 날짜 구하기 (D-Day 계산용 기준점)
+            const todayObj = new Date();
+            const offset = todayObj.getTimezoneOffset() * 60000;
+            const todayStr = new Date(todayObj.getTime() - offset).toISOString().split('T')[0];
+            const tDate = new Date(todayStr);
             
             const createListHTML = (dataArr, type) => {
                 let html = '';
@@ -385,9 +379,24 @@
                     let memoHtml = item.memo ? `<div class="progress-memo">💡 [진행 메모] ${escapeHTML(item.memo)}</div>` : '';
                     let pinWarning = !item.lat ? `<span style="background:#dc3545; color:white; font-size:10px; padding:2px 4px; border-radius:4px; margin-left:4px;">⚠️핀누락</span>` : '';
 
+                    // 🌟 D-Day (지연 일수) 계산 및 뱃지 생성 로직
+                    let dDayHtml = '';
+                    if (item.date) {
+                        let itemDate = new Date(item.date);
+                        let diffDays = Math.floor((tDate - itemDate) / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays <= 0) {
+                            dDayHtml = `<span style="background:#28a745; color:white; font-size:10px; padding:2px 5px; border-radius:4px; margin-left:4px; font-weight:bold;">[D-Day]</span>`;
+                        } else if (diffDays === 1) {
+                            dDayHtml = `<span style="background:#fd7e14; color:white; font-size:10px; padding:2px 5px; border-radius:4px; margin-left:4px; font-weight:bold;">[D+1]</span>`;
+                        } else {
+                            dDayHtml = `<span style="background:#dc3545; color:white; font-size:10px; padding:2px 5px; border-radius:4px; margin-left:4px; font-weight:bold;">[D+${diffDays}]</span>`;
+                        }
+                    }
+
                     html += `
                         <div class="list-item ${cssClass}" onclick="openActionSheet('${type}', ${idx}, '${item.asNum}')">
-                            <span class="as-num">${type==='cnet'?'[씨넷]':'[일반]'} ${item.asNum} ${pinWarning}</span>
+                            <span class="as-num">${type==='cnet'?'[씨넷]':'[일반]'} ${item.asNum} ${pinWarning} ${dDayHtml}</span>
                             <span class="addr-text" onclick="openTmap('${type}', ${idx}, event)" style="color:#0056b3; cursor:pointer;">🧭 ${item.addr} <span style="font-size:10px; font-weight:normal; text-decoration:underline; color:#666;">(티맵)</span></span>
                             <div class="info-text">👤 ${item.name} | ${phoneLink}</div>
                             <div class="info-text" style="color:#444;">🏷️ ${item.modelName}</div>
@@ -408,7 +417,7 @@
             renderArchive();
         }
 
-        // 🌟 모바일 일정 순서 변경 함수 (위로/아래로)
+        // 모바일 일정 순서 변경 함수
         function moveArchiveUpMobile(idx, event) {
             event.stopPropagation();
             if (idx < archiveData.length - 1 && archiveData[idx].completedDate === archiveData[idx+1].completedDate) {
@@ -488,7 +497,6 @@
         }
         function closeActionSheet(e) { document.getElementById('actionSheet').style.display = 'none'; }
 
-        // 🌟 팝업창 전용 티맵 호출 엔진
         function callNaviFromMenu() {
             let type = document.getElementById('actionType').value; 
             let idx = parseInt(document.getElementById('actionIdx').value);
