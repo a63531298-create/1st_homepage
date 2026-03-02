@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Y-Solution Mobile v1.8.31</title>
+    <title>Y-Solution Mobile v1.8.32</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -210,7 +210,7 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec"; 
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.31' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.32' };
 
         const StorageManager = {
             getKey: (key) => APP_CONFIG.PREFIX + key,
@@ -309,11 +309,19 @@
             menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
         }
 
-        // 🌟 내비게이션 검색용 '주소 클리너' (동/호수 방해물 자동 제거)
+        // 🌟 내비게이션 검색용 '주소 클리너' (+ 현장명 번역 사전 완벽 연동)
         function getCleanAddress(item) {
             let addr = item.searchTarget || item.addr;
             if (!addr) return "";
+
+            // 1. 사장님이 등록한 '현장명 사전(Address Alias)'에 있는지 먼저 검사
+            for (const [key, val] of Object.entries(addressAlias)) {
+                if (addr.includes(key)) {
+                    return val; // 사전에 있으면 복잡한 이름 버리고 '실제 지번'으로 반환
+                }
+            }
             
+            // 2. 사전에 없는 일반 아파트면 동호수만 잘라내기
             addr = addr.replace(/\s*[a-zA-Z가-힣0-9]+동\s*\d+호.*$/, '');
             addr = addr.replace(/\s*\d+동\s*$/, '');
             addr = addr.replace(/\s+[1-9]\d{2,}-\d{3,}.*$/, ''); 
@@ -321,8 +329,8 @@
             return addr.trim();
         }
 
-        // 🌟 네이버 지도 딥링크 직접 호출 엔진 (동호수 절단 버전)
-       function openNaverMap(type, idx, event) {
+        // 🌟 네이버 지도 딥링크 직접 호출 엔진 (앱 실행 시 웹 팝업 완벽 차단)
+        function openNaverMap(type, idx, event) {
             event.stopPropagation(); // 팝업창 뜨는 것 방지
             
             let dataArr = type === 'general' ? savedData : type === 'cnet' ? cnetData : archiveData;
@@ -336,24 +344,18 @@
             let appUrl = `nmap://search?query=${encodedAddr}&appname=ysolution`;
             let webUrl = `https://m.map.naver.com/search2/search.naver?query=${encodedAddr}`;
             
-            // 클릭한 시간 기록
             let clickedAt = +new Date();
             
             // 1. 네이버 지도 앱 강제 호출
             window.location.href = appUrl;
             
-            // 2. 스마트 안전장치 (눈치껏 웹창 띄우기 취소)
+            // 2. 스마트 안전장치 (앱이 켜졌으면 웹창 안 띄움)
             setTimeout(() => {
-                // document.hidden: 앱이 켜져서 현재 웹 화면이 뒤로 숨겨졌는가?
-                // 시간 체크: 앱 전환으로 브라우저가 잠시 멈춰서 1초 이상 지났는가?
-                if (document.hidden || (+new Date() - clickedAt > 1000)) {
-                    return; // 앱이 켜졌으니 여기서 로직 종료 (웹창 안 띄움!)
-                }
-                
-                // 앱이 안 켜지고 그대로 화면에 머물러 있을 때만 웹 브라우저 실행
+                if (document.hidden || (+new Date() - clickedAt > 1000)) return; 
                 window.open(webUrl, '_blank');
             }, 500);
         }
+
         function renderViews() {
             const kw = document.getElementById('globalSearchInput').value.trim().toLowerCase();
             
@@ -758,4 +760,3 @@
     </script>
 </body>
 </html>
-
