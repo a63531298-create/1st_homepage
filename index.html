@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Y-Solution Mobile v1.8.25</title>
+    <title>Y-Solution Mobile v1.8.30</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -31,13 +31,16 @@
         .list-item.archive { border-left: 4px solid #6c757d; }
         
         .as-num { font-size: 13px; font-weight: bold; color: #0056b3; margin-bottom: 4px; display: block; }
-        .addr-text { font-size: 14px; font-weight: bold; color: #222; display: block; margin-bottom: 4px; line-height: 1.3; }
+        .addr-text { font-size: 14px; font-weight: bold; display: block; margin-bottom: 4px; line-height: 1.3; }
         .info-text { font-size: 11px; color: #666; margin-bottom: 4px; }
         
-        /* 🌟 긴 증상 전체 보기 스크롤 박스 및 메모 하이라이트 CSS */
         .content-box { max-height: 65px; overflow-y: auto; font-size: 11px; color: #444; background: #f8f9fa; padding: 8px; border-radius: 6px; border-left: 3px solid #adb5bd; margin-top: 6px; white-space: pre-wrap; line-height: 1.4; }
         .progress-memo { font-size: 11px; font-weight: bold; color: #856404; margin-top: 6px; background: #fff3cd; padding: 8px; border-radius: 6px; border-left: 3px solid #ffeeba; white-space: pre-wrap; line-height: 1.4; }
         .archive-date-header { font-size: 14px; font-weight: bold; color: #111; padding: 10px 12px; background: #e9ecef; border-radius: 6px; margin: 15px 0 10px 0; border-left: 4px solid #6c757d; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+        /* 모바일 순서 변경 버튼 전용 CSS */
+        .mobile-move-btn { padding: 4px 12px; font-size: 12px; font-weight: bold; background: #e9ecef; border: 1px solid #ced4da; border-radius: 4px; color: #495057; cursor: pointer; }
+        .mobile-move-btn:active { background: #ced4da; }
 
         .action-sheet-bg { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; align-items: flex-end; }
         .action-sheet { background: #fff; width: 100%; border-radius: 15px 15px 0 0; padding: 20px; box-sizing: border-box; animation: slideUp 0.3s ease-out; max-height: 90vh; overflow-y: auto; }
@@ -160,7 +163,8 @@
             <input type="hidden" id="actionIdx">
             <input type="hidden" id="actionType">
             
-            <button class="action-btn" style="background:#fee500; color:#111;" onclick="openNavi()">🚗 카카오맵/내비 길안내</button>
+            <button class="action-btn" style="background:#03c75a; color:#fff;" onclick="callNaverFromMenu()">🗺️ 네이버 지도/내비 길안내</button>
+            
             <button class="action-btn" style="background:#fd7e14;" onclick="addProgressMemo()">📝 진행 메모 추가/수정</button>
             <button class="action-btn" style="background:#17a2b8;" onclick="editItem()">✏️ 접수 내용 수정하기</button>
             <button class="action-btn" style="background:#28a745;" onclick="moveItem('today')">🎯 D-Day (오늘 일정으로)</button>
@@ -207,7 +211,7 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec"; 
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.25' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.30' };
 
         const StorageManager = {
             getKey: (key) => APP_CONFIG.PREFIX + key,
@@ -238,7 +242,6 @@
         function showLoader() { document.getElementById('loader').style.display = 'flex'; }
         function hideLoader() { document.getElementById('loader').style.display = 'none'; }
 
-        // 🌟 백그라운드 자동 저장 엔진
         function save() {
             StorageManager.set('Todo', savedData);
             StorageManager.set('CnetTodo', cnetData);
@@ -263,10 +266,7 @@
                 if(json.FixedAddr) fixedStartAddr = json.FixedAddr;
                 if(json.DailyMemos) dailyMemos = json.DailyMemos;
                 
-                save(); 
-                renderViews();
-                initMap();
-                renderSettings();
+                save(); renderViews(); initMap(); renderSettings();
             } catch(e) { console.log("로컬 데이터 사용", e); renderViews(); initMap(); renderSettings(); }
             hideLoader();
         }
@@ -310,7 +310,24 @@
             menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
         }
 
-        // 🌟 통합 렌더링 함수
+        // 🌟 네이버 지도 딥링크 직접 호출 엔진
+        function openNaverMap(addr, event) {
+            event.stopPropagation(); // 팝업창 뜨는 것 방지
+            if (!addr) return alert("주소가 없습니다.");
+            
+            let encodedAddr = encodeURIComponent(addr);
+            let appUrl = `nmap://search?query=${encodedAddr}&appname=ysolution`;
+            let webUrl = `https://m.map.naver.com/search2/search.naver?query=${encodedAddr}`;
+            
+            // 1. 네이버 지도 앱 강제 호출
+            window.location.href = appUrl;
+            
+            // 2. 폰에 네이버 앱이 없을 경우를 대비한 안전장치 (0.5초 뒤 모바일 웹페이지로 연결)
+            setTimeout(() => {
+                window.open(webUrl, '_blank');
+            }, 500);
+        }
+
         function renderViews() {
             const kw = document.getElementById('globalSearchInput').value.trim().toLowerCase();
             
@@ -322,8 +339,6 @@
                     
                     let cssClass = type === 'general' ? 'general' : 'cnet';
                     let phoneLink = item.tel ? `<a href="tel:${item.tel}" style="color:#007bff; text-decoration:none; font-weight:bold; padding:2px;" onclick="event.stopPropagation()">📞 ${item.tel}</a>` : '📞 없음';
-                    
-                    // 🌟 긴 증상 및 진행 메모 표시 개선
                     let contentHtml = `<div class="content-box">📄 증상: ${escapeHTML(item.content || '내용 없음')}</div>`;
                     let memoHtml = item.memo ? `<div class="progress-memo">💡 [진행 메모] ${escapeHTML(item.memo)}</div>` : '';
                     let pinWarning = !item.lat ? `<span style="background:#dc3545; color:white; font-size:10px; padding:2px 4px; border-radius:4px; margin-left:4px;">⚠️핀누락</span>` : '';
@@ -331,7 +346,7 @@
                     html += `
                         <div class="list-item ${cssClass}" onclick="openActionSheet('${type}', ${idx}, '${item.asNum}')">
                             <span class="as-num">${type==='cnet'?'[씨넷]':'[일반]'} ${item.asNum} ${pinWarning}</span>
-                            <span class="addr-text">${item.addr}</span>
+                            <span class="addr-text" onclick="openNaverMap('${item.addr}', event)" style="color:#0056b3; cursor:pointer;">🗺️ ${item.addr} <span style="font-size:10px; font-weight:normal; text-decoration:underline; color:#666;">(네비)</span></span>
                             <div class="info-text">👤 ${item.name} | ${phoneLink}</div>
                             <div class="info-text" style="color:#444;">🏷️ ${item.modelName}</div>
                             ${contentHtml}
@@ -348,10 +363,25 @@
             document.getElementById('listCnet').innerHTML = createListHTML(cnetData, 'cnet');
             document.getElementById('cnetCount').innerText = cnetData.length + "건";
 
-            renderArchive(); // 🌟 일정 탭 분리 렌더링
+            renderArchive();
         }
 
-        // 🌟 일정(Archive) 탭: 날짜별 그룹화 렌더링
+        // 🌟 모바일 일정 순서 변경 함수 (위로/아래로)
+        function moveArchiveUpMobile(idx, event) {
+            event.stopPropagation();
+            if (idx < archiveData.length - 1 && archiveData[idx].completedDate === archiveData[idx+1].completedDate) {
+                [archiveData[idx], archiveData[idx+1]] = [archiveData[idx+1], archiveData[idx]];
+                save(); renderViews();
+            }
+        }
+        function moveArchiveDownMobile(idx, event) {
+            event.stopPropagation();
+            if (idx > 0 && archiveData[idx].completedDate === archiveData[idx-1].completedDate) {
+                [archiveData[idx], archiveData[idx-1]] = [archiveData[idx-1], archiveData[idx]];
+                save(); renderViews();
+            }
+        }
+
         function renderArchive() {
             let html = '';
             let groups = {};
@@ -387,11 +417,18 @@
                     html += `
                         <div class="list-item archive" onclick="openActionSheet('archive', ${obj.idx}, '${item.asNum}')">
                             <span class="as-num">${srcTag} ${item.asNum}</span>
-                            <span class="addr-text">${item.addr}</span>
+                            <span class="addr-text" onclick="openNaverMap('${item.addr}', event)" style="color:#0056b3; cursor:pointer;">🗺️ ${item.addr} <span style="font-size:10px; font-weight:normal; text-decoration:underline; color:#666;">(네비)</span></span>
                             <div class="info-text">👤 ${item.name} | ${phoneLink}</div>
                             <div class="info-text" style="color:#444;">🏷️ ${item.modelName}</div>
                             ${contentHtml}
                             ${memoHtml}
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; border-top:1px dashed #ddd; padding-top:8px;">
+                                <span style="font-size:11px; color:#777; font-weight:bold;">🔄 방문 순서 조정</span>
+                                <div style="display:flex; gap:6px;">
+                                    <button class="mobile-move-btn" onclick="moveArchiveUpMobile(${obj.idx}, event)">🔼 위로</button>
+                                    <button class="mobile-move-btn" onclick="moveArchiveDownMobile(${obj.idx}, event)">🔽 아래로</button>
+                                </div>
+                            </div>
                         </div>
                     `;
                 });
@@ -409,16 +446,23 @@
         }
         function closeActionSheet(e) { document.getElementById('actionSheet').style.display = 'none'; }
 
-        function openNavi() {
-            let type = document.getElementById('actionType').value; let idx = parseInt(document.getElementById('actionIdx').value);
+        // 🌟 팝업창 전용 네이버 지도 호출 엔진
+        function callNaverFromMenu() {
+            let type = document.getElementById('actionType').value; 
+            let idx = parseInt(document.getElementById('actionIdx').value);
             let item = type === 'general' ? savedData[idx] : type === 'cnet' ? cnetData[idx] : archiveData[idx];
-            if(item && item.lat && item.lng) {
-                window.open(`https://map.kakao.com/link/to/${encodeURIComponent(item.searchTarget || item.addr)},${item.lat},${item.lng}`, '_blank');
-            } else { alert('해당 주소의 핀(좌표)이 없습니다.'); }
+            
+            if(item && item.addr) {
+                let encodedAddr = encodeURIComponent(item.addr);
+                let appUrl = `nmap://search?query=${encodedAddr}&appname=ysolution`;
+                window.location.href = appUrl;
+                setTimeout(() => window.open(`https://m.map.naver.com/search2/search.naver?query=${encodedAddr}`, '_blank'), 500);
+            } else { 
+                alert('해당 항목에 주소가 없습니다.'); 
+            }
             closeActionSheet();
         }
 
-        // 🌟 진행 메모 추가/수정 함수
         function addProgressMemo() {
             let type = document.getElementById('actionType').value; let idx = parseInt(document.getElementById('actionIdx').value);
             let dataArr = type === 'general' ? savedData : type === 'cnet' ? cnetData : archiveData;
@@ -447,7 +491,7 @@
             let item = dataArr.splice(idx, 1)[0];
             let currentMemo = item.memo || '';
             let memo = prompt("✅ 작업 완료 메모를 입력하세요 (일정 탭으로 이동됩니다):", currentMemo);
-            if (memo === null) return; // 취소시 롤백안됨 (위치 옮김)
+            if (memo === null) { dataArr.splice(idx, 0, item); return; } 
             
             let targetDate = new Date(); let offset = targetDate.getTimezoneOffset() * 60000;
             item.completedDate = new Date(targetDate.getTime() - offset).toISOString().split('T')[0];
