@@ -581,33 +581,26 @@
             clearTimeout(renderDebounceTimer); renderDebounceTimer = setTimeout(render, 150); 
         }
 
-        // 🌟 완벽하게 스크롤 값을 잡아내는 로직 (확장보드 세로스크롤 추가)
         function render() { 
             if(isDragging) return; 
 
-            // 1. 현재 모든 스크롤 위치 영혼까지 끌어모아 기억하기
             let sGen = document.getElementById('listGen') ? document.getElementById('listGen').scrollTop : 0;
             let sCnet = document.getElementById('listCnet') ? document.getElementById('listCnet').scrollTop : 0;
             
-            // 확장 보드 가로 스크롤
             let sArcX = document.getElementById('archiveScrollArea') ? document.getElementById('archiveScrollArea').scrollLeft : 0;
             
-            // 🌟 제일 중요: 확장 보드 내 각 날짜별 세로 스크롤!
             let archiveScrollsY = [];
             document.querySelectorAll('.date-col-items').forEach(el => archiveScrollsY.push(el.scrollTop));
 
-            // 화면 그리기
             document.getElementById('genCountBadge').innerText = `총 ${savedData.length}건`;
             document.getElementById('cnetCountBadge').innerText = `총 ${cnetData.length}건`;
             renderMemos(); renderList('general'); renderList('cnet'); renderArchiveList(); updateMapMarkers(); updateSummary(); 
 
-            // 2. 화면이 그려진 직후 (0.01초 뒤) 스크롤 위치 강제 주입
             setTimeout(() => {
                 if(document.getElementById('listGen')) document.getElementById('listGen').scrollTop = sGen;
                 if(document.getElementById('listCnet')) document.getElementById('listCnet').scrollTop = sCnet;
                 if(document.getElementById('archiveScrollArea')) document.getElementById('archiveScrollArea').scrollLeft = sArcX;
                 
-                // 🌟 박스별 세로 스크롤 복구
                 let colEls = document.querySelectorAll('.date-col-items');
                 archiveScrollsY.forEach((scrollY, i) => {
                     if(colEls[i]) colEls[i].scrollTop = scrollY;
@@ -703,7 +696,6 @@
             listEl.appendChild(fragment);
         }
 
-        // 언더바 항목 이동 버튼
         function moveArchiveUp(idx) { if (idx < archiveData.length - 1 && archiveData[idx].completedDate === archiveData[idx+1].completedDate) { [archiveData[idx], archiveData[idx+1]] = [archiveData[idx+1], archiveData[idx]]; save(); render(); } }
         function moveArchiveDown(idx) { if (idx > 0 && archiveData[idx].completedDate === archiveData[idx-1].completedDate) { [archiveData[idx], archiveData[idx-1]] = [archiveData[idx-1], archiveData[idx]]; save(); render(); } }
 
@@ -799,7 +791,6 @@
                 arcGroups[dateKey].slice().reverse().forEach(obj => {
                     const d = document.createElement('div'); d.className = 'archive-item';
                     
-                    // 🌟 확장 보드 드래그 앤 드롭 완벽 수술 (수직 이동)
                     d.ondragstart = function(e) { 
                         isDragging = true; 
                         e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'archive', idx: obj.idx })); 
@@ -813,15 +804,15 @@
                     };
                     d.ondragover = function(e) { 
                         e.preventDefault(); 
-                        e.stopPropagation(); // 기둥(column)으로 드롭되는 것 방지
-                        this.style.borderTop = '3px dashed #6f42c1'; // 보라색 점선
+                        e.stopPropagation(); 
+                        this.style.borderTop = '3px dashed #6f42c1'; 
                     };
                     d.ondragleave = function(e) { 
                         this.style.borderTop = ''; 
                     };
                     d.ondrop = function(e) {
                         e.preventDefault(); 
-                        e.stopPropagation(); // 기둥(column)으로 드롭되는 것 방지
+                        e.stopPropagation(); 
                         this.style.borderTop = ''; 
                         isDragging = false;
                         try {
@@ -830,9 +821,7 @@
                                 const draggedIdx = parseInt(data.idx, 10);
                                 const targetIdx = parseInt(obj.idx, 10);
                                 if (!isNaN(draggedIdx) && !isNaN(targetIdx) && draggedIdx !== targetIdx) {
-                                    // 🌟 진짜 배열(archiveData) 내에서 위치 이동
                                     const movedItem = archiveData.splice(draggedIdx, 1)[0];
-                                    // 떨어뜨린 곳의 날짜가 다르다면 그 날짜를 강제 흡수
                                     movedItem.completedDate = archiveData[targetIdx] ? archiveData[targetIdx].completedDate : movedItem.completedDate;
                                     archiveData.splice(targetIdx, 0, movedItem);
                                     save(); render();
@@ -1031,46 +1020,109 @@
             items.slice().reverse().forEach(item => { let typeStr = item.source === 'cnet' ? '씨넷' : '일반'; tableRows += `<tr style="page-break-inside: avoid; page-break-after: auto;"><td style="text-align:center; padding:8px;"><b>${seq++}</b><br><span style="font-size:11px; color:#333;">[${typeStr}]</span></td><td style="padding:10px; line-height:1.5;"><b>[${escapeHTML(item.asNum)}]</b><br>[고객] ${escapeHTML(item.name)||'미상'} (${escapeHTML(item.tel)||'번호없음'})<br>[주소] <b>${escapeHTML(item.addr)}</b></td><td style="padding:10px; line-height:1.5;">[품목] <b>${escapeHTML(item.modelName)||'기재없음'}</b> (${escapeHTML(item.costType)||'미분류'})<br>[증상] ${escapeHTML(item.content)||''}<br><span style="font-size:11px; color:#333;">${item.archiveMemo ? '[메모] '+escapeHTML(item.archiveMemo) : ''}</span></td><td style="padding:10px; height:120px; vertical-align:top; color:#555;"></td><td style="text-align:center; font-size:18px;">${checkMark}</td></tr>`; }); openPrintWindow(title, tableRows);
         }
 
+        // 🌟 수정된 지능형 엑셀 파서 (handleFiles)
         async function handleFiles(event) {
             try {
                 ReportManager.clear(); 
                 for (let file of event.target.files) {
-                    const data = await file.arrayBuffer(); const workbook = XLSX.read(data, {type: 'array'});
+                    const data = await file.arrayBuffer(); 
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    
                     workbook.SheetNames.forEach(sName => {
-                        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sName], {header: 1});
-                        let headerRowIdx = -1; let colMap = {};
-                        for (let i = 0; i < Math.min(rows.length, 10); i++) {
-                            if (!rows[i]) continue; const rowStr = rows[i].map(c => String(c||'').replace(/\s/g,'')).join('');
-                            if (rowStr.includes('접수번호') && (rowStr.includes('주소') || rowStr.includes('품목'))) {
+                        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sName], {header: 1, defval: ""});
+                        let headerRowIdx = -1; 
+                        let colMap = {};
+                        let isCnet = false;
+
+                        for (let i = 0; i < Math.min(rows.length, 15); i++) {
+                            if (!rows[i]) continue; 
+                            const rowStr = rows[i].map(c => String(c||'').replace(/\s/g,'')).join('');
+                            
+                            if (rowStr.includes('접수번호') || rowStr.includes('접수일')) {
                                 headerRowIdx = i;
+                                
+                                // 헤더의 특수 키워드를 감지하여 씨넷(외주)과 일반 대기열을 명확히 분류
+                                if (rowStr.includes('동-호수') || rowStr.includes('주소(현장명)') || rowStr.includes('하자기간')) {
+                                    isCnet = true;
+                                } else {
+                                    isCnet = false;
+                                }
+
                                 rows[i].forEach((cell, cIdx) => {
                                     let key = String(cell||'').replace(/\s/g,'');
-                                    if (key.includes('접수번호')) colMap.asNum = cIdx; else if (key.includes('접수년') || key.includes('접수일')) colMap.date = cIdx; 
-                                    else if (key.includes('주소')) colMap.addr = cIdx; else if (key.includes('하자기간')||key.includes('유무상')||key.includes('비용')) colMap.cost = cIdx;
-                                    else if (key.includes('품목')||key.includes('모델')) colMap.model = cIdx; else if (key.includes('동-호수')||key.includes('동/호')) colMap.dongho = cIdx;
-                                    else if (key.includes('연락처')||key.includes('전화')) colMap.tel = cIdx; else if (key.includes('내용')||key.includes('증상')||key.includes('상세')) colMap.content = cIdx;
-                                    else if (key.includes('고객명')||key.includes('성명')) colMap.name = cIdx; else if (key.includes('충전기')) colMap.charger = cIdx;
-                                }); break;
+                                    if (key.includes('접수번호')) colMap.asNum = cIdx; 
+                                    else if (key.includes('접수년') || key.includes('접수일')) colMap.date = cIdx; 
+                                    else if (key === '주소' || key.includes('현장명') || key === '방문지') colMap.addr = cIdx; 
+                                    else if (key.includes('주소상세') || key.includes('상세주소')) colMap.addrDetail = cIdx; 
+                                    else if (key.includes('동-호수') || key.includes('동/호')) colMap.dongho = cIdx;
+                                    else if (key.includes('하자기간')||key.includes('유무상')||key.includes('비용')) colMap.cost = cIdx;
+                                    else if (key.includes('품목')||key.includes('모델')) colMap.model = cIdx; 
+                                    else if (key === '연락처' || key === '전화' || key === '휴대폰' || key === '대표번호') { 
+                                        if (colMap.tel === undefined || key === '연락처') colMap.tel = cIdx; 
+                                        if (key === '대표번호') colMap.repTel = cIdx; // 대표번호 별도 저장
+                                    } 
+                                    else if (key.includes('내용')||key.includes('증상')||key.includes('내역')||key.includes('상세')) {
+                                        if (colMap.content === undefined || key.includes('접수내역')) colMap.content = cIdx;
+                                    }
+                                    else if (key.includes('고객명')||key.includes('성명')) colMap.name = cIdx; 
+                                }); 
+                                break;
                             }
                         }
+
                         if (headerRowIdx !== -1) {
                             for (let r = headerRowIdx + 1; r < rows.length; r++) {
-                                let row = rows[r]; if (!row || row.length === 0) continue;
-                                let asNum = colMap.asNum !== undefined ? String(row[colMap.asNum]||'').trim() : ''; if (!asNum) continue;
-                                let addrBase = colMap.addr !== undefined ? String(row[colMap.addr]||'').trim() : ''; let dongho = colMap.dongho !== undefined ? String(row[colMap.dongho]||'').trim() : '';
-                                let addr = addrBase; if (dongho) addr += " " + dongho; if (!addr) continue;
-                                let costRaw = colMap.cost !== undefined ? String(row[colMap.cost]||'') : ''; let costType = costRaw.includes('유상') ? '유상' : '무상';
+                                let row = rows[r]; if (!row || row.length === 0 || !row.some(c => String(c).trim() !== '')) continue;
+                                
+                                let asNum = colMap.asNum !== undefined ? String(row[colMap.asNum]||'').trim() : ''; 
+                                if (!asNum || !asNum.includes('-')) continue;
+
+                                let baseAddr = colMap.addr !== undefined ? String(row[colMap.addr]||'').trim() : ''; 
+                                let detailAddr = '';
+                                if (isCnet) {
+                                    detailAddr = colMap.dongho !== undefined ? String(row[colMap.dongho]||'').trim() : '';
+                                } else {
+                                    detailAddr = colMap.addrDetail !== undefined ? String(row[colMap.addrDetail]||'').trim() : '';
+                                }
+                                let addr = (baseAddr + " " + detailAddr).trim();
+                                if (!addr) continue;
+
+                                let costRaw = colMap.cost !== undefined ? String(row[colMap.cost]||'') : ''; 
+                                let costType = costRaw.includes('유상') ? '유상' : (costRaw.includes('무상') ? '무상' : '');
+                                
                                 let modelName = colMap.model !== undefined ? String(row[colMap.model]||'').trim() : '';
                                 let name = colMap.name !== undefined ? String(row[colMap.name]||'').trim() : '고객';
                                 let contentRaw = colMap.content !== undefined ? String(row[colMap.content]||'').trim() : '';
-                                let telRaw = colMap.tel !== undefined ? String(row[colMap.tel]||'').trim() : ''; let tel = formatPhoneNumber(telRaw);
+                                
+                                let telRaw = colMap.tel !== undefined ? String(row[colMap.tel]||'').trim() : ''; 
+                                if (!telRaw && colMap.repTel !== undefined) { telRaw = String(row[colMap.repTel]||'').trim(); }
+                                let tel = formatPhoneNumber(telRaw);
+                                
                                 let dateStr = '';
-                                if (colMap.date !== undefined && row[colMap.date]) { if (typeof row[colMap.date] === 'number') { dateStr = new Date(Math.round((row[colMap.date] - 25569) * 86400 * 1000)).toISOString().split('T')[0]; } else { let dStr = String(row[colMap.date]).trim(); let yStr = colMap.year !== undefined ? String(row[colMap.year]||'').trim() : ''; if (dStr.match(/^\d{4}[-./]/)) dateStr = dStr.replace(/\./g, '-'); else if (yStr && dStr) dateStr = yStr + "-" + dStr.replace(/\./g, '-'); else dateStr = dStr; } }
+                                if (colMap.date !== undefined && row[colMap.date]) { 
+                                    if (typeof row[colMap.date] === 'number') { 
+                                        dateStr = new Date(Math.round((row[colMap.date] - 25569) * 86400 * 1000)).toISOString().split('T')[0]; 
+                                    } else { 
+                                        let dStr = String(row[colMap.date]).trim(); 
+                                        if (dStr.match(/^\d{4}[-./]/)) dateStr = dStr.replace(/\./g, '-'); 
+                                        else dateStr = dStr; 
+                                    } 
+                                }
                                 dateStr = dateStr.replace(/\//g, '-').replace(/\./g, '-');
-                                let info = { source:'cnet', asNum, addr, searchTarget:addrBase, name, tel, modelName, content: contentRaw, costType, date: dateStr, memo: "" };
-                                if (!cnetData.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { SearchQueue.add(info, 'cnet'); } else { ReportManager.addDuplicate(info.asNum, info.addr, info.name); }
+                                if(!dateStr) dateStr = getLocalDateString(new Date());
+
+                                let targetType = isCnet ? 'cnet' : 'general';
+                                let info = { source: targetType, asNum, addr, searchTarget: baseAddr, name, tel, modelName, content: contentRaw, costType, date: dateStr, memo: "" };
+                                
+                                let targetDataArr = isCnet ? cnetData : savedData;
+                                if (!targetDataArr.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { 
+                                    SearchQueue.add(info, targetType); 
+                                } else { 
+                                    ReportManager.addDuplicate(info.asNum, info.addr, info.name); 
+                                }
                             }
                         } else {
+                            // [기존 기능 보존] 작업 완료 확인서 (세로형 데이터) 처리 로직
                             let info = { source:'general', asNum:"", addr:"", name:"", content:"", date:"", tel:"", costType:"", modelName:"" }; 
                             let sheetText = rows.map(r=>r.join(" ")).join(" \n"); let fullContent = []; let tempTel = ""; let tempName = "";
                             rows.forEach((row, r) => {
@@ -1092,7 +1144,14 @@
                             info.name = tempName || "미상"; info.tel = tempTel || "번호없음"; info.content = fullContent.join("\n");
                             if (!info.date) info.date = new Date().toISOString().split('T')[0];
                             if (!info.asNum) { let m = sheetText.match(/(?:AS)?\d{6,8}-\d{4,5}/i); info.asNum = m ? m[0].toUpperCase() : "미상-" + Math.floor(Math.random()*1000); }
-                            if (info.addr) { info.searchTarget = info.addr; if (!savedData.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { SearchQueue.add(info, 'general'); } else { ReportManager.addDuplicate(info.asNum, info.addr, info.name); } }
+                            if (info.addr) { 
+                                info.searchTarget = info.addr; 
+                                if (!savedData.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { 
+                                    SearchQueue.add(info, 'general'); 
+                                } else { 
+                                    ReportManager.addDuplicate(info.asNum, info.addr, info.name); 
+                                } 
+                            }
                         }
                     });
                 }
