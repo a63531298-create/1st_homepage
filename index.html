@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Y-Solution Mobile v1.8.39</title>
+    <title>Y-Solution Mobile v1.9.1</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -20,6 +20,16 @@
         .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #888; border: none; background: transparent; cursor: pointer; transition: 0.2s; }
         .nav-btn.active { color: #fee500; background: #343a40; }
         .nav-icon { font-size: 20px; margin-bottom: 3px; }
+        
+        /* 🌟 [신규] 일정 서브 탭 스타일 */
+        .sub-tab-bar { display: flex; gap: 5px; margin-bottom: 12px; background: #e9ecef; padding: 5px; border-radius: 10px; }
+        .sub-tab { flex: 1; padding: 10px 0; border: none; border-radius: 8px; font-size: 12px; font-weight: bold; background: transparent; color: #666; cursor: pointer; transition: 0.2s; }
+        .sub-tab.active { background: #fff; color: #111; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .sub-tab.active[data-tab="D-DAY"] { border-bottom: 3px solid #28a745; }
+        .sub-tab.active[data-tab="D-1"] { border-bottom: 3px solid #fd7e14; }
+        .sub-tab.active[data-tab="D-2"] { border-bottom: 3px solid #007bff; }
+        .sub-tab.active[data-tab="DONE"] { border-bottom: 3px solid #6c757d; }
+
         .list-item { background: white; margin-bottom: 8px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); position: relative; }
         .list-item.general { border-left: 4px solid #fee500; }
         .list-item.cnet { border-left: 4px solid #ff4757; }
@@ -80,10 +90,18 @@
                 <h3 style="margin:0 0 10px 0; color:#ff4757;">📍 씨넷 대기열 <span id="cnetCount" style="float:right; color:#888; font-size:12px;">0건</span></h3>
                 <div id="listCnet"></div>
             </div>
+            
             <div id="archive-view" class="view-section">
-                <h3 style="margin:0 0 10px 0; color:#6c757d;">📦 타임라인 일정 보드 <span id="arcTotalCount" style="float:right; color:#888; font-size:12px;">0건</span></h3>
+                <div class="sub-tab-bar">
+                    <button class="sub-tab active" data-tab="D-DAY" onclick="switchArchiveTab('D-DAY', this)">오늘(D)</button>
+                    <button class="sub-tab" data-tab="D-1" onclick="switchArchiveTab('D-1', this)">내일(D-1)</button>
+                    <button class="sub-tab" data-tab="D-2" onclick="switchArchiveTab('D-2', this)">모레(D-2)</button>
+                    <button class="sub-tab" data-tab="DONE" onclick="switchArchiveTab('DONE', this)">완료/전체</button>
+                </div>
+                <h3 style="margin:0 0 10px 0; color:#6c757d;"><span id="archiveTitle">📅 오늘 일정</span> <span id="arcTotalCount" style="float:right; color:#888; font-size:12px;">0건</span></h3>
                 <div id="listArchive"></div>
             </div>
+
             <div id="settings-view" class="view-section">
                 <h3 style="margin:0 0 15px 0; color:#111;">⚙️ 관제센터 도구 및 설정</h3>
                 
@@ -197,7 +215,7 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec";
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.39' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.9.1' };
 
         const StorageManager = {
             getKey: (key) => APP_CONFIG.PREFIX + key,
@@ -225,12 +243,11 @@
         let addressAlias   = StorageManager.get('AddressAlias', { "동탄 아테라파밀리에": "경기도 화성시 신동 561-1" });
         let fixedStartAddr = StorageManager.get('FixedAddr', "한신대 133번길 12-1");
         let dailyMemos     = StorageManager.get('DailyMemos', {});
-        
-        // 🌟 [신규 변수] 주차등록 문자 템플릿 불러오기
         let smsTemplate    = StorageManager.get('SmsTemplate', "방문목적: A/S 방문수리\n차량번호: \n주차등록 부탁드립니다.");
 
+        let currentArchiveTab = 'D-DAY'; // 🌟 일정 서브 탭 상태 초기화
         let map, clusterer, geocoder;
-        let activeMarkers  = [];
+        let activeMarkers   = [];
         let currentEditIdx = -1;
         let cloudSaveTimer = null;
 
@@ -251,7 +268,6 @@
             StorageManager.set('AddressAlias', addressAlias);
             StorageManager.set('FixedAddr', fixedStartAddr);
             StorageManager.set('DailyMemos', dailyMemos);
-            // 🌟 문자 템플릿 저장 추가
             StorageManager.set('SmsTemplate', smsTemplate);
             
             clearTimeout(cloudSaveTimer);
@@ -263,13 +279,12 @@
             try {
                 let response = await fetch(GAS_API_URL);
                 let json = await response.json();
-                if (json.Todo)         savedData      = json.Todo.filter(i => i !== null);
-                if (json.CnetTodo)     cnetData       = json.CnetTodo.filter(i => i !== null);
-                if (json.Archive)      archiveData    = json.Archive.filter(i => i !== null);
-                if (json.AddressAlias) addressAlias   = json.AddressAlias;
-                if (json.FixedAddr)    fixedStartAddr = json.FixedAddr;
-                if (json.DailyMemos)   dailyMemos     = json.DailyMemos;
-                // 🌟 문자 템플릿 클라우드 동기화 추가
+                if (json.Todo)          savedData      = json.Todo.filter(i => i !== null);
+                if (json.CnetTodo)      cnetData       = json.CnetTodo.filter(i => i !== null);
+                if (json.Archive)       archiveData    = json.Archive.filter(i => i !== null);
+                if (json.AddressAlias)  addressAlias   = json.AddressAlias;
+                if (json.FixedAddr)     fixedStartAddr = json.FixedAddr;
+                if (json.DailyMemos)    dailyMemos     = json.DailyMemos;
                 if (json.SmsTemplate !== undefined) smsTemplate = json.SmsTemplate;
                 
                 save(); renderViews(); initMap(); renderSettings();
@@ -282,7 +297,6 @@
 
         async function saveToCloud(isManual = false) {
             if (isManual) showLoader();
-            // 🌟 문자 템플릿 페이로드 추가
             let payload = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos, SmsTemplate: smsTemplate };
             try {
                 await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify(payload) });
@@ -313,6 +327,18 @@
             if (viewId === 'settings-view') renderSettings();
         }
 
+        // 🌟 [신규] 일정 서브 탭 전환 함수
+        function switchArchiveTab(tabName, btnEl) {
+            currentArchiveTab = tabName;
+            document.querySelectorAll('.sub-tab').forEach(btn => btn.classList.remove('active'));
+            btnEl.classList.add('active');
+            
+            const titleMap = { 'D-DAY': '📅 오늘 일정', 'D-1': '🚀 내일 일정(D-1)', 'D-2': '📅 모레 일정(D-2)', 'DONE': '📦 전체/완료 보드' };
+            document.getElementById('archiveTitle').innerText = titleMap[tabName];
+            
+            renderArchive();
+        }
+
         function toggleFabMenu() {
             const menu = document.getElementById('fabMenu');
             menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
@@ -322,10 +348,7 @@
             let rawAddr = item.addr;
             if (!rawAddr) return "";
             for (const [key, val] of Object.entries(addressAlias)) {
-                if (rawAddr.includes(key)) {
-                    rawAddr = rawAddr.replace(key, val);
-                    break;
-                }
+                if (rawAddr.includes(key)) { rawAddr = rawAddr.replace(key, val); break; }
             }
             rawAddr = rawAddr.replace(/([a-zA-Z가-힣0-9]+동)\s*[-~_]?\s*\d+호.*$/, '$1');
             rawAddr = rawAddr.replace(/(?:\s*)([1-9]\d{1,3})\s*[-~_]\s*(\d{3,4})(?!\d).*$/, ' $1동');
@@ -353,23 +376,13 @@
             document.addEventListener('visibilitychange', handleVisibility);
         }
 
-        // 🌟 [핵심 기능] 문자 앱 자동 호출 함수
         function sendParkingSms(tel, event) {
             if(event) event.stopPropagation();
             if(!tel) return alert("유효한 전화번호가 없습니다.");
-            
-            // 번호에서 하이픈 등 숫자 이외의 문자 제거
             let cleanNumber = String(tel).replace(/[^0-9]/g, '');
-            
             if(!smsTemplate) return alert("설정 탭에서 고정 메세지 템플릿을 먼저 작성해주세요.");
-            
-            // 메세지 본문 URL 인코딩
             let encodedMsg = encodeURIComponent(smsTemplate);
-            
-            // iOS와 Android의 SMS 스킴 구분자 자동 판별
             let separator = /iPad|iPhone|iPod/.test(navigator.userAgent) ? '&' : '?';
-            
-            // 스마트폰 기본 문자 앱 호출
             window.location.href = `sms:${cleanNumber}${separator}body=${encodedMsg}`;
         }
 
@@ -389,8 +402,7 @@
                     let phoneLink = item.tel ? `<a href="tel:${escapeHTML(item.tel)}" style="color:#007bff; text-decoration:none; font-weight:bold; padding:2px;" onclick="event.stopPropagation()">📞 ${escapeHTML(item.tel)}</a>` : '📞 없음';
                     let contentHtml = `<div class="content-box">📄 증상: ${escapeHTML(item.content || '내용 없음')}</div>`;
                     let memoHtml    = item.memo ? `<div class="progress-memo">💡 [진행 메모] ${escapeHTML(item.memo)}</div>` : '';
-                   let pinWarning  = !item.lat ? `<span style="background:#dc3545; color:white; font-size:10px; padding:2px 4px; border-radius:4px; margin-left:4px;">⚠️핀누락</span>` : '';
-                    
+                    let pinWarning  = !item.lat ? `<span style="background:#dc3545; color:white; font-size:10px; padding:2px 4px; border-radius:4px; margin-left:4px;">⚠️핀누락</span>` : '';
                     let costBadge = item.costType ? `<span style="font-weight:bold; color:${item.costType.includes('무상') ? '#28a745' : '#dc3545'};">[${escapeHTML(item.costType)}]</span> ` : '';
                     
                     let dDayHtml = '';
@@ -432,90 +444,62 @@
             if (card) openActionSheet(card.dataset.type, parseInt(card.dataset.idx), card.dataset.asnum);
         }
 
-        function moveArchiveUpMobile(idx, event) {
-            event.stopPropagation();
-            if (idx < archiveData.length - 1 && archiveData[idx].completedDate === archiveData[idx+1].completedDate) {
-                let temp = archiveData[idx];
-                archiveData[idx] = archiveData[idx+1];
-                archiveData[idx+1] = temp;
-                save(); renderViews();
-            } else {
-                alert("같은 날짜 그룹의 맨 첫 번째 순서입니다.");
-            }
-        }
-
-        function moveArchiveDownMobile(idx, event) {
-            event.stopPropagation();
-            if (idx > 0 && archiveData[idx].completedDate === archiveData[idx-1].completedDate) {
-                let temp = archiveData[idx];
-                archiveData[idx] = archiveData[idx-1];
-                archiveData[idx-1] = temp;
-                save(); renderViews();
-            } else {
-                alert("같은 날짜 그룹의 맨 마지막 순서입니다.");
-            }
-        }
-
+        // 🌟 [수정] 일정 렌더링 함수: 서브 탭 필터링 로직 추가
         function renderArchive() {
-            let html = '', groups = {};
+            let html = '', filteredItems = [];
             let kw = document.getElementById('globalSearchInput').value.trim().toLowerCase();
+            
+            // 날짜 계산
+            let now = new Date();
+            let offset = now.getTimezoneOffset() * 60000;
+            let d0 = new Date(now.getTime() - offset).toISOString().split('T')[0];
+            let d1 = new Date(now.getTime() + 86400000 - offset).toISOString().split('T')[0];
+            let d2 = new Date(now.getTime() + (86400000 * 2) - offset).toISOString().split('T')[0];
+
             archiveData.forEach((item, idx) => {
                 if (!item) return;
                 if (kw && !(item.addr||'').toLowerCase().includes(kw) && !(item.asNum||'').toLowerCase().includes(kw) && !(item.tel||'').includes(kw) && !(item.modelName||'').toLowerCase().includes(kw)) return;
-                let d = item.completedDate || '날짜 미상';
-                if (!groups[d]) groups[d] = [];
-                groups[d].push({item, idx});
+                
+                let targetDate = item.completedDate || '';
+                let isMatch = false;
+
+                if (currentArchiveTab === 'D-DAY' && targetDate === d0) isMatch = true;
+                else if (currentArchiveTab === 'D-1' && targetDate === d1) isMatch = true;
+                else if (currentArchiveTab === 'D-2' && targetDate === d2) isMatch = true;
+                else if (currentArchiveTab === 'DONE') isMatch = true;
+
+                if (isMatch) filteredItems.push({item, idx});
             });
-            let sortedDates = Object.keys(groups).sort((a,b) => b.localeCompare(a));
-            let todayObj = new Date(), offset = todayObj.getTimezoneOffset() * 60000;
-            let todayStr = new Date(todayObj.getTime() - offset).toISOString().split('T')[0];
-            let tmrwStr  = new Date(todayObj.getTime() + 86400000 - offset).toISOString().split('T')[0];
-            sortedDates.forEach(date => {
-                let dateTitle = date === todayStr ? `🎯 D-Day (오늘)` : date === tmrwStr ? `🚀 D-1 (내일)` : `✅ 완료됨 (${escapeHTML(date)})`;
-                html += `<div class="archive-date-header"><span>${dateTitle}</span> <span style="color:#0056b3;">${groups[date].length}건</span></div>`;
-                groups[date].slice().reverse().forEach(obj => {
+
+            // 내역 렌더링
+            if (filteredItems.length === 0) {
+                html = `<div style="text-align:center; padding:40px; color:#888; font-size:14px;">해당 탭에 일정이 없습니다.</div>`;
+            } else {
+                filteredItems.slice().reverse().forEach(obj => {
                     let item = obj.item;
                     let phoneLink = item.tel ? `<a href="tel:${escapeHTML(item.tel)}" style="color:#007bff; text-decoration:none; font-weight:bold; padding:2px;" onclick="event.stopPropagation()">📞 ${escapeHTML(item.tel)}</a>` : '📞 없음';
-                    
-                    // 🌟 2. 주차등록(SMS 전송) 버튼 렌더링
                     let smsBtn = item.tel ? `<button class="sms-btn" onclick="sendParkingSms('${escapeHTML(item.tel)}', event)">🅿️ 주차등록</button>` : '';
-                    
                     let contentHtml = `<div class="content-box">📄 증상: ${escapeHTML(item.content || '내용 없음')}</div>`;
-                    let memoHtml    = item.archiveMemo ? `<div class="progress-memo" style="border-left-color:#ff4757; background:#fff0f0; color:#d63031;">📝 [완료 메모] ${escapeHTML(item.archiveMemo)}</div>` : '';
+                    let memoHtml    = item.archiveMemo ? `<div class="progress-memo" style="border-left-color:#ff4757; background:#fff0f0; color:#d63031;">📝 [메모] ${escapeHTML(item.archiveMemo)}</div>` : '';
                     let srcTag = item.source === 'cnet' ? '<span style="color:#ff4757;">[씨넷]</span>' : '<span style="color:#0056b3;">[일반]</span>';
-                    let costBadge = item.costType ? `<span style="font-weight:bold; color:${item.costType.includes('무상') ? '#28a745' : '#dc3545'};">[${escapeHTML(item.costType)}]</span> ` : '';
                     
                     html += `
                         <div class="list-item archive" data-idx="${obj.idx}" data-type="archive" data-asnum="${escapeHTML(item.asNum)}">
-                            <span class="as-num">${srcTag} ${escapeHTML(item.asNum)}</span>
-                            <span class="addr-text tmap-link" data-idx="${obj.idx}" data-type="archive" style="color:#0056b3; cursor:pointer;">🧭 ${escapeHTML(item.addr)} <span style="font-size:10px; font-weight:normal; text-decoration:underline; color:#666;">(티맵)</span></span>
+                            <span class="as-num">${srcTag} ${escapeHTML(item.asNum)} <span style="float:right; color:#999; font-size:10px;">${escapeHTML(item.completedDate)}</span></span>
+                            <span class="addr-text tmap-link" data-idx="${obj.idx}" data-type="archive" style="color:#0056b3; cursor:pointer;">🧭 ${escapeHTML(item.addr)}</span>
                             <div class="info-text">👤 ${escapeHTML(item.name)} | ${phoneLink} ${smsBtn}</div>
-                            <div class="info-text" style="color:#444;">${costBadge}🏷️ ${escapeHTML(item.modelName)}</div>
+                            <div class="info-text" style="color:#444;">🏷️ ${escapeHTML(item.modelName)}</div>
                             ${contentHtml}${memoHtml}
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; border-top:1px dashed #ddd; padding-top:8px;">
-                                <span style="font-size:11px; color:#777; font-weight:bold;">🔄 방문 순서 조정</span>
-                                <div style="display:flex; gap:6px;">
-                                    <button class="mobile-move-btn" data-action="up"   data-idx="${obj.idx}">🔼 위로</button>
-                                    <button class="mobile-move-btn" data-action="down" data-idx="${obj.idx}">🔽 아래로</button>
-                                </div>
-                            </div>
                         </div>`;
                 });
-            });
+            }
+            
             document.getElementById('listArchive').innerHTML   = html;
-            document.getElementById('arcTotalCount').innerText = archiveData.length + "건";
+            document.getElementById('arcTotalCount').innerText = filteredItems.length + "건";
         }
 
         document.getElementById('listArchive').addEventListener('click', function(e) {
-            const moveBtn = e.target.closest('.mobile-move-btn');
-            if (moveBtn) {
-                e.stopPropagation();
-                const idx = parseInt(moveBtn.dataset.idx);
-                if (moveBtn.dataset.action === 'up')   moveArchiveUpMobile(idx, e);
-                if (moveBtn.dataset.action === 'down') moveArchiveDownMobile(idx, e);
-                return;
-            }
-            if (e.target.closest('.sms-btn')) return; // 주차등록 버튼 버블링 방지
+            if (e.target.closest('.sms-btn')) return;
             const tmapEl = e.target.closest('.tmap-link');
             if (tmapEl) { e.stopPropagation(); openTmap(tmapEl.dataset.type, parseInt(tmapEl.dataset.idx), e); return; }
             if (e.target.tagName === 'A') return;
@@ -542,7 +526,7 @@
             let dataArr = type === 'general' ? savedData : type === 'cnet' ? cnetData : archiveData;
             let item = dataArr[idx];
             let currentMemo = type === 'archive' ? (item.archiveMemo || '') : (item.memo || '');
-            let memo = prompt("📝 현장 진행 메모를 입력하세요 (대기열에 유지됩니다):", currentMemo);
+            let memo = prompt("📝 현장 진행 메모를 입력하세요:", currentMemo);
             if (memo !== null) { if (type === 'archive') item.archiveMemo = memo; else item.memo = memo; save(); renderViews(); }
             closeActionSheet();
         }
@@ -651,7 +635,7 @@
                 info.content = (ext("접수내용")||ext("증상"))+(ext("특이사항") ? "\n[특이사항] "+ext("특이사항") : "");
                 if (info.addr) SearchQueue.add(info, 'general');
             });
-            closeWebModal(); alert("추출 및 주소 변환이 백그라운드에서 진행됩니다.");
+            closeWebModal(); alert("추출 및 주소 변환 진행 중...");
         }
 
         const SearchQueue = {
@@ -668,10 +652,7 @@
                     if (task.retryCount < 10) {
                         task.retryCount++; this.queue.unshift(task);
                         setTimeout(() => this.processNext(), 500);
-                    } else {
-                        console.warn('[SearchQueue] geocoder 로드 실패, 건너뜀:', task.info.addr);
-                        finalizeSearch(task, null, null, task.info.addr);
-                    }
+                    } else { finalizeSearch(task, null, null, task.info.addr); }
                     return;
                 }
                 let target = task.info.searchTarget || task.info.addr;
@@ -702,61 +683,47 @@
             document.getElementById('memoDateStr').innerText = `(${todayStr})`;
             document.getElementById('memoToday').value = dailyMemos[todayStr] || "";
             document.getElementById('fixedAddrInput').value = fixedStartAddr || "";
-            
-            // 🌟 3. 설정 탭 오픈 시 저장된 문자 템플릿 로드
             document.getElementById('smsTemplateInput').value = smsTemplate || "";
-            
             renderAliasList();
         }
 
-        // 🌟 4. 문자 템플릿 저장 함수 추가
-        function saveSmsTemplate() {
-            smsTemplate = document.getElementById('smsTemplateInput').value;
-            save();
-        }
-
+        function saveSmsTemplate() { smsTemplate = document.getElementById('smsTemplateInput').value; save(); }
         function saveMemoToday() {
             let today = new Date(), offset = today.getTimezoneOffset() * 60000;
             let todayStr = new Date(today.getTime() - offset).toISOString().split('T')[0];
             dailyMemos[todayStr] = document.getElementById('memoToday').value; save();
         }
-
         function changeFixedAddr() {
             let newAddr = document.getElementById('fixedAddrInput').value.trim();
             if (newAddr) { fixedStartAddr = newAddr; save(); alert("거점이 저장되었습니다."); }
         }
-
         function renderAliasList() {
             const area = document.getElementById('aliasListArea');
             area.innerHTML = '';
             for (const [key, value] of Object.entries(addressAlias)) {
-                const row    = document.createElement('div');
+                const row = document.createElement('div');
                 row.style.cssText = 'display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed #ddd;';
-                const label  = document.createElement('span'); label.textContent = `[${key}] ➔ ${value}`;
+                const label = document.createElement('span'); label.textContent = `[${key}] ➔ ${value}`;
                 const delBtn = document.createElement('span'); delBtn.textContent = 'X';
                 delBtn.className = 'del-alias-btn'; delBtn.dataset.key = key;
                 row.appendChild(label); row.appendChild(delBtn); area.appendChild(row);
             }
         }
-
         document.getElementById('aliasListArea').addEventListener('click', function(e) {
             if (e.target.classList.contains('del-alias-btn')) {
                 const key = e.target.dataset.key;
                 if (confirm("삭제하시겠습니까?")) { delete addressAlias[key]; renderAliasList(); save(); }
             }
         });
-
         function addAlias() {
             const key = document.getElementById('aliasKeyInput').value.trim();
             const val = document.getElementById('aliasValueInput').value.trim();
-            if (!key || !val) return alert("현장명 일부분과 주소를 입력하세요.");
-            addressAlias[key] = val;
-            document.getElementById('aliasKeyInput').value = ''; document.getElementById('aliasValueInput').value = '';
-            renderAliasList(); save(); alert("추가 완료! (기존 누락 항목은 PC버전에서 소급 적용됩니다.)");
+            if (!key || !val) return alert("내용을 입력하세요.");
+            addressAlias[key] = val; renderAliasList(); save();
         }
 
         async function copyRoute() {
-            if (!fixedStartAddr) return alert("설정 탭에서 고정 거점을 먼저 설정하세요.");
+            if (!fixedStartAddr) return alert("거점 설정 필요");
             let route = `[출발] ${fixedStartAddr}\n`, seq = 1;
             const addrGroups = {};
             [...savedData, ...cnetData].forEach(item => {
@@ -767,37 +734,29 @@
             });
             for (const [key, counts] of Object.entries(addrGroups)) {
                 let badge = [];
-                if (counts.gen  > 0) badge.push(`일반${counts.gen}`);
+                if (counts.gen > 0) badge.push(`일반${counts.gen}`);
                 if (counts.cnet > 0) badge.push(`씨넷${counts.cnet}`);
                 route += `${seq}. ${key} (${badge.join(',')})\n`; seq++;
             }
             route += `[도착] ${fixedStartAddr}`;
-            try {
-                await navigator.clipboard.writeText(route);
-            } catch(e) {
-                const ta = document.createElement('textarea'); ta.value = route;
-                document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-            }
-            alert("✨ AI 스케줄링 경로가 복사되었습니다!");
+            try { await navigator.clipboard.writeText(route); } catch(e) { }
+            alert("✨ 경로 복사 완료!");
         }
 
         function exportToExcel() {
-            if (typeof XLSX === 'undefined') return alert("라이브러리 로딩 중입니다.");
+            if (typeof XLSX === 'undefined') return alert("라이브러리 로딩 중");
             let wb = XLSX.utils.book_new();
-            const fmtData    = (arr) => arr.map(i => ({ '접수번호':i.asNum,'주소':i.addr,'고객명':i.name,'연락처':i.tel,'모델명':i.modelName,'비용구분':i.costType,'증상/내용':i.content,'메모':i.memo||'' }));
-            const fmtArchive = (arr) => arr.map(i => ({ '완료일자':i.completedDate||'','출처':i.source==='cnet'?'씨넷':'일반','접수번호':i.asNum,'주소':i.addr,'고객명':i.name,'연락처':i.tel,'모델명':i.modelName,'비용구분':i.costType,'완료메모':i.archiveMemo||'' }));
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fmtData(savedData)),    "일반대기열");
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fmtData(cnetData)),     "씨넷대기열");
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fmtArchive(archiveData)),"완료일정");
-            XLSX.writeFile(wb, `YSOL_Mobile_Excel_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.xlsx`);
+            const fmtData = (arr) => arr.map(i => ({ '접수번호':i.asNum,'주소':i.addr,'고객명':i.name,'연락처':i.tel,'모델명':i.modelName,'비용구분':i.costType,'증상':i.content,'메모':i.memo||'' }));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fmtData(savedData)), "일반");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fmtData(cnetData)), "씨넷");
+            XLSX.writeFile(wb, `YSOL_v1.9.1_Backup.xlsx`);
         }
 
         function backupData() {
-            // 🌟 백업 데이터에 SmsTemplate 추가
             const data = { Todo:savedData, CnetTodo:cnetData, Archive:archiveData, AddressAlias:addressAlias, FixedAddr:fixedStartAddr, DailyMemos:dailyMemos, SmsTemplate:smsTemplate };
             const blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
-            const url  = URL.createObjectURL(blob);
-            const a    = document.createElement('a'); a.href=url; a.download=`YSOL_Mobile_JSON_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.json`; a.click(); URL.revokeObjectURL(url);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href=url; a.download=`YSOL_v1.9.1_Backup.json`; a.click();
         }
 
         function restoreData(event) {
@@ -805,27 +764,22 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    let parsed = JSON.parse(e.target.result.replace(/^\uFEFF/,'').trim());
-                    if (parsed.Todo)         savedData      = parsed.Todo.filter(i=>i!==null);
-                    if (parsed.CnetTodo)     cnetData       = parsed.CnetTodo.filter(i=>i!==null);
-                    if (parsed.Archive)      archiveData    = parsed.Archive.filter(i=>i!==null);
-                    if (parsed.AddressAlias) addressAlias   = parsed.AddressAlias;
-                    if (parsed.FixedAddr)    fixedStartAddr = parsed.FixedAddr;
-                    if (parsed.DailyMemos)   dailyMemos     = parsed.DailyMemos;
-                    // 🌟 복구 데이터에 SmsTemplate 덮어쓰기
-                    if (parsed.SmsTemplate !== undefined) smsTemplate = parsed.SmsTemplate;
-                    
-                    save(); renderViews(); alert("✨ 모바일 복구 및 클라우드 동기화 완료!");
-                } catch(err) { alert("⚠️ 파일 형식 오류"); }
+                    let parsed = JSON.parse(e.target.result.trim());
+                    if (parsed.Todo) savedData = parsed.Todo;
+                    if (parsed.CnetTodo) cnetData = parsed.CnetTodo;
+                    if (parsed.Archive) archiveData = parsed.Archive;
+                    if (parsed.SmsTemplate) smsTemplate = parsed.SmsTemplate;
+                    save(); renderViews(); alert("복구 완료!");
+                } catch(err) { alert("오류"); }
             };
-            reader.readAsText(file, "UTF-8"); event.target.value = '';
+            reader.readAsText(file, "UTF-8");
         }
 
         function initMap() {
             kakao.maps.load(function() {
                 map = new kakao.maps.Map(document.getElementById('map'), { center: new kakao.maps.LatLng(37.145, 127.067), level: 8 });
                 clusterer = new kakao.maps.MarkerClusterer({ map, averageCenter: true, minLevel: 5 });
-                geocoder  = new kakao.maps.services.Geocoder();
+                geocoder = new kakao.maps.services.Geocoder();
                 updateMapMarkers();
             });
         }
@@ -844,7 +798,17 @@
             processMarkers(savedData); processMarkers(cnetData);
         }
 
-        window.onload = () => fetchFromCloud();
+        // 🌟 [Y-SOLUTION] 버전 비교 및 히스토리 함수
+        function compareYVersion() {
+            const history = [
+                { v: '1.8.39', desc: '주차 문자 템플릿 및 SMS 발송 기능 추가' },
+                { v: '1.9.1', desc: '일정 탭 내 서브 탭(D-DAY, D-1, D-2, 완료) 분리 및 필터링 강화' }
+            ];
+            console.log("--- Y-SOLUTION VERSION HISTORY ---");
+            history.forEach(h => console.log(`[${h.v}] ${h.desc}`));
+        }
+
+        window.onload = () => { fetchFromCloud(); compareYVersion(); };
 
         (function() {
             let searchTimer = null;
