@@ -1038,10 +1038,10 @@
                             if (!rows[i]) continue; 
                             const rowStr = rows[i].map(c => String(c||'').replace(/\s/g,'')).join('');
                             
-                            if (rowStr.includes('접수번호') || rowStr.includes('접수일')) {
+                            // 🌟 [수정 1] 헤더 판별 조건 강화: 세로형(작업확인서)이 리스트로 오해받지 않도록, 한 줄에 '접수번호'와 '주소/현장명/품목/연락처'가 같이 있어야 함
+                            if (rowStr.includes('접수번호') && (rowStr.includes('주소') || rowStr.includes('현장명') || rowStr.includes('품목') || rowStr.includes('연락처'))) {
                                 headerRowIdx = i;
                                 
-                                // 헤더의 특수 키워드를 감지하여 씨넷(외주)과 일반 대기열을 명확히 분류
                                 if (rowStr.includes('동-호수') || rowStr.includes('주소(현장명)') || rowStr.includes('하자기간')) {
                                     isCnet = true;
                                 } else {
@@ -1059,7 +1059,7 @@
                                     else if (key.includes('품목')||key.includes('모델')) colMap.model = cIdx; 
                                     else if (key === '연락처' || key === '전화' || key === '휴대폰' || key === '대표번호') { 
                                         if (colMap.tel === undefined || key === '연락처') colMap.tel = cIdx; 
-                                        if (key === '대표번호') colMap.repTel = cIdx; // 대표번호 별도 저장
+                                        if (key === '대표번호') colMap.repTel = cIdx; 
                                     } 
                                     else if (key.includes('내용')||key.includes('증상')||key.includes('내역')||key.includes('상세')) {
                                         if (colMap.content === undefined || key.includes('접수내역')) colMap.content = cIdx;
@@ -1075,7 +1075,8 @@
                                 let row = rows[r]; if (!row || row.length === 0 || !row.some(c => String(c).trim() !== '')) continue;
                                 
                                 let asNum = colMap.asNum !== undefined ? String(row[colMap.asNum]||'').trim() : ''; 
-                                if (!asNum || !asNum.includes('-')) continue;
+                                // 🌟 [수정 2] 씨넷은 접수번호에 하이픈(-)이 없으므로 includes('-') 조건 삭제
+                                if (!asNum || asNum === '접수번호') continue;
 
                                 let baseAddr = colMap.addr !== undefined ? String(row[colMap.addr]||'').trim() : ''; 
                                 let detailAddr = '';
@@ -1157,26 +1158,6 @@
                 }
                 event.target.value = ""; if (SearchQueue.queue.length === 0) ReportManager.showIfAny(); 
             } catch(e) { alert("⚠️ 시스템 에러(Excel 파싱): " + e.message); }
-        }
-
-        function processWebInput() {
-            try {
-                ReportManager.clear();
-                const text = document.getElementById('webInputText').value; if (!text.trim()) return alert("텍스트를 먼저 붙여넣어 주세요.");
-                let splitRegex = /\[Web발신\]|(?=\d{4}년\s*\d{2}월\s*\d{2}일\s*접수건)|---+/i; let blocks = text.split(splitRegex).filter(b => b.trim().length > 10); 
-                blocks.forEach(block => {
-                    let info = { source: 'general', asNum: "", addr: "", searchTarget: "", name: "", content: "", memo: "", date: "", tel: "", costType: "", modelName: "" };
-                    let dateMatch = block.match(/(\d{4})년\s*(\d{2})월\s*(\d{2})일/); if (dateMatch) { info.date = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`; } else { info.date = new Date().toISOString().split('T')[0]; }
-                    const extractData = (keyword) => { let match = block.match(new RegExp(`(?:[●\\-*■▶]\\s*)?${keyword}\\s*[:\\-]?\\s*([\\s\\S]*?)(?=\\n\\s*[●\\-*■▶]|$)`)); return match ? match[1].trim() : ""; };
-                    info.name = extractData("고객명") || extractData("성명"); info.addr = extractData("주소") || extractData("방문지"); info.searchTarget = info.addr;
-                    info.tel = formatPhoneNumber(extractData("연락처") || extractData("대표번호") || extractData("전화") || extractData("휴대폰"));
-                    info.modelName = extractData("모델명") || extractData("품목"); info.costType = extractData("유,무상구분") || extractData("유/무상구분") || extractData("운영사\\[유/무상\\]") || extractData("비용구분");
-                    info.asNum = extractData("접수번호") || extractData("AS번호") || "WEB-" + Date.now().toString().slice(-6) + Math.floor(Math.random()*10);
-                    info.content = ((extractData("접수내용") || extractData("증상")) + (extractData("특이사항") ? "\n[특이사항] " + extractData("특이사항") : "") + (extractData("운영사업자") ? "\n[운영사] " + extractData("운영사업자") : "")).trim();
-                    if (info.addr) { const isDup = savedData.some(d => d.asNum === info.asNum) || archiveData.some(d => d.asNum === info.asNum); if (!isDup) { SearchQueue.add(info, 'general'); } else { ReportManager.addDuplicate(info.asNum, info.addr, info.name); } } else { ReportManager.addFailed("주소 누락 (WEB 텍스트)", info.asNum); }
-                });
-                closeWebModal(); if (SearchQueue.queue.length === 0) ReportManager.showIfAny();
-            } catch(e) { alert("⚠️ 시스템 에러(WEB 추출): " + e.message); }
         }
     </script>
 </body>
