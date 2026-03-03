@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Y-Solution Mobile v1.8.38</title>
+    <title>Y-Solution Mobile v1.8.39</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -26,7 +26,7 @@
         .list-item.archive { border-left: 4px solid #6c757d; }
         .as-num { font-size: 13px; font-weight: bold; color: #0056b3; margin-bottom: 4px; display: block; }
         .addr-text { font-size: 14px; font-weight: bold; display: block; margin-bottom: 4px; line-height: 1.3; }
-        .info-text { font-size: 11px; color: #666; margin-bottom: 4px; }
+        .info-text { font-size: 11px; color: #666; margin-bottom: 4px; display: flex; align-items: center; flex-wrap: wrap; }
         .content-box { max-height: 65px; overflow-y: auto; font-size: 11px; color: #444; background: #f8f9fa; padding: 8px; border-radius: 6px; border-left: 3px solid #adb5bd; margin-top: 6px; white-space: pre-wrap; line-height: 1.4; }
         .progress-memo { font-size: 11px; font-weight: bold; color: #856404; margin-top: 6px; background: #fff3cd; padding: 8px; border-radius: 6px; border-left: 3px solid #ffeeba; white-space: pre-wrap; line-height: 1.4; }
         .archive-date-header { font-size: 14px; font-weight: bold; color: #111; padding: 10px 12px; background: #e9ecef; border-radius: 6px; margin: 15px 0 10px 0; border-left: 4px solid #6c757d; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
@@ -52,6 +52,8 @@
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #fee500; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .del-alias-btn { color: red; font-weight: bold; padding: 0 5px; cursor: pointer; user-select: none; }
+        .sms-btn { margin-left: 8px; padding: 3px 8px; font-size: 11px; background: #20c997; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: 0.1s; }
+        .sms-btn:active { transform: scale(0.95); background: #17a2b8; }
     </style>
 </head>
 <body>
@@ -84,6 +86,13 @@
             </div>
             <div id="settings-view" class="view-section">
                 <h3 style="margin:0 0 15px 0; color:#111;">⚙️ 관제센터 도구 및 설정</h3>
+                
+                <div class="setting-card">
+                    <h4>🅿️ 고정 문자 템플릿 (주차등록 등)</h4>
+                    <p style="font-size:11px; color:#666; margin-top:-5px; margin-bottom:8px;">일정 탭에서 버튼을 누르면 아래 내용으로 문자가 자동 완성됩니다.</p>
+                    <textarea id="smsTemplateInput" class="local-input" style="height:60px; resize:none; border-color:#20c997;" oninput="saveSmsTemplate()" placeholder="예) 차량번호 12가3456 / 방문목적: AS수리 주차등록 부탁드립니다."></textarea>
+                </div>
+
                 <div class="setting-card">
                     <h4>📝 일일 메모장 <span id="memoDateStr" style="font-size:11px; color:#666;"></span></h4>
                     <textarea id="memoToday" class="local-input" style="height:80px; resize:none; background:#fffdf2; border-color:#fee500;" oninput="saveMemoToday()" placeholder="오늘의 특이사항을 메모하세요 (자동저장)"></textarea>
@@ -188,7 +197,7 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec";
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.38' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.39' };
 
         const StorageManager = {
             getKey: (key) => APP_CONFIG.PREFIX + key,
@@ -216,6 +225,9 @@
         let addressAlias   = StorageManager.get('AddressAlias', { "동탄 아테라파밀리에": "경기도 화성시 신동 561-1" });
         let fixedStartAddr = StorageManager.get('FixedAddr', "한신대 133번길 12-1");
         let dailyMemos     = StorageManager.get('DailyMemos', {});
+        
+        // 🌟 [신규 변수] 주차등록 문자 템플릿 불러오기
+        let smsTemplate    = StorageManager.get('SmsTemplate', "방문목적: A/S 방문수리\n차량번호: \n주차등록 부탁드립니다.");
 
         let map, clusterer, geocoder;
         let activeMarkers  = [];
@@ -239,6 +251,9 @@
             StorageManager.set('AddressAlias', addressAlias);
             StorageManager.set('FixedAddr', fixedStartAddr);
             StorageManager.set('DailyMemos', dailyMemos);
+            // 🌟 문자 템플릿 저장 추가
+            StorageManager.set('SmsTemplate', smsTemplate);
+            
             clearTimeout(cloudSaveTimer);
             cloudSaveTimer = setTimeout(() => saveToCloud(false), 4000);
         }
@@ -254,6 +269,9 @@
                 if (json.AddressAlias) addressAlias   = json.AddressAlias;
                 if (json.FixedAddr)    fixedStartAddr = json.FixedAddr;
                 if (json.DailyMemos)   dailyMemos     = json.DailyMemos;
+                // 🌟 문자 템플릿 클라우드 동기화 추가
+                if (json.SmsTemplate !== undefined) smsTemplate = json.SmsTemplate;
+                
                 save(); renderViews(); initMap(); renderSettings();
             } catch(e) {
                 console.log("로컬 데이터 사용", e);
@@ -264,7 +282,8 @@
 
         async function saveToCloud(isManual = false) {
             if (isManual) showLoader();
-            let payload = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos };
+            // 🌟 문자 템플릿 페이로드 추가
+            let payload = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos, SmsTemplate: smsTemplate };
             try {
                 await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify(payload) });
                 if (isManual) alert("☁️ 수동 클라우드 동기화 완료!");
@@ -299,25 +318,17 @@
             menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
         }
 
-        // 🌟 [패치 1] 티맵 주소 클리너: 번역 사전이 뒤에 있는 동호수(327-901)를 갉아먹지 못하도록 완벽 방어!
         function getCleanAddress(item) {
             let rawAddr = item.addr;
             if (!rawAddr) return "";
-            
-            // 1. 현장명 사전 (이름만 바꿔치기 하고, 뒤에 붙은 동호수는 얌전히 놔두기 위해 replace만 사용)
             for (const [key, val] of Object.entries(addressAlias)) {
                 if (rawAddr.includes(key)) {
                     rawAddr = rawAddr.replace(key, val);
-                    break; // 하나 바꿨으면 스톱! (return으로 끝내지 않음)
+                    break;
                 }
             }
-            
-            // 2. "105동 1302호" -> "105동" (앞의 띄어쓰기나 대시 등 정리)
             rawAddr = rawAddr.replace(/([a-zA-Z가-힣0-9]+동)\s*[-~_]?\s*\d+호.*$/, '$1');
-            
-            // 3. "103-901" -> "103동" (띄어쓰기가 있든 없든, 번역 사전으로 바뀐 이름 뒤에 붙어 있어도 안전하게 구출)
             rawAddr = rawAddr.replace(/(?:\s*)([1-9]\d{1,3})\s*[-~_]\s*(\d{3,4})(?!\d).*$/, ' $1동');
-            
             return rawAddr.trim();
         }
 
@@ -342,6 +353,26 @@
             document.addEventListener('visibilitychange', handleVisibility);
         }
 
+        // 🌟 [핵심 기능] 문자 앱 자동 호출 함수
+        function sendParkingSms(tel, event) {
+            if(event) event.stopPropagation();
+            if(!tel) return alert("유효한 전화번호가 없습니다.");
+            
+            // 번호에서 하이픈 등 숫자 이외의 문자 제거
+            let cleanNumber = String(tel).replace(/[^0-9]/g, '');
+            
+            if(!smsTemplate) return alert("설정 탭에서 고정 메세지 템플릿을 먼저 작성해주세요.");
+            
+            // 메세지 본문 URL 인코딩
+            let encodedMsg = encodeURIComponent(smsTemplate);
+            
+            // iOS와 Android의 SMS 스킴 구분자 자동 판별
+            let separator = /iPad|iPhone|iPod/.test(navigator.userAgent) ? '&' : '?';
+            
+            // 스마트폰 기본 문자 앱 호출
+            window.location.href = `sms:${cleanNumber}${separator}body=${encodedMsg}`;
+        }
+
         function renderViews() {
             const kw = document.getElementById('globalSearchInput').value.trim().toLowerCase();
             const todayObj = new Date();
@@ -360,10 +391,8 @@
                     let memoHtml    = item.memo ? `<div class="progress-memo">💡 [진행 메모] ${escapeHTML(item.memo)}</div>` : '';
                    let pinWarning  = !item.lat ? `<span style="background:#dc3545; color:white; font-size:10px; padding:2px 4px; border-radius:4px; margin-left:4px;">⚠️핀누락</span>` : '';
                     
-                    // 🌟 1. 유무상 뱃지 생성 로직 추가 (무상은 초록, 유상은 빨강)
                     let costBadge = item.costType ? `<span style="font-weight:bold; color:${item.costType.includes('무상') ? '#28a745' : '#dc3545'};">[${escapeHTML(item.costType)}]</span> ` : '';
                     
-                    // 🌟 [패치 2] D-Day 계산 시 NaN 뜨는 에러 방지
                     let dDayHtml = '';
                     if (item.date && !isNaN(new Date(item.date).getTime())) {
                         let itemDate = new Date(item.date);
@@ -403,10 +432,8 @@
             if (card) openActionSheet(card.dataset.type, parseInt(card.dataset.idx), card.dataset.asnum);
         }
 
-        // 🌟 [버그 수정] 일정 순서 변경 함수 (화면 역순 렌더링을 고려한 스마트 스와프)
         function moveArchiveUpMobile(idx, event) {
             event.stopPropagation();
-            // 화면에서 "위로(🔼)" 간다는 것은, 배열(시간순)에서는 더 나중(+1)으로 이동한다는 뜻.
             if (idx < archiveData.length - 1 && archiveData[idx].completedDate === archiveData[idx+1].completedDate) {
                 let temp = archiveData[idx];
                 archiveData[idx] = archiveData[idx+1];
@@ -419,7 +446,6 @@
 
         function moveArchiveDownMobile(idx, event) {
             event.stopPropagation();
-            // 화면에서 "아래로(🔽)" 간다는 것은, 배열(시간순)에서는 더 이전(-1)으로 이동한다는 뜻.
             if (idx > 0 && archiveData[idx].completedDate === archiveData[idx-1].completedDate) {
                 let temp = archiveData[idx];
                 archiveData[idx] = archiveData[idx-1];
@@ -450,18 +476,21 @@
                 groups[date].slice().reverse().forEach(obj => {
                     let item = obj.item;
                     let phoneLink = item.tel ? `<a href="tel:${escapeHTML(item.tel)}" style="color:#007bff; text-decoration:none; font-weight:bold; padding:2px;" onclick="event.stopPropagation()">📞 ${escapeHTML(item.tel)}</a>` : '📞 없음';
+                    
+                    // 🌟 2. 주차등록(SMS 전송) 버튼 렌더링
+                    let smsBtn = item.tel ? `<button class="sms-btn" onclick="sendParkingSms('${escapeHTML(item.tel)}', event)">🅿️ 주차등록</button>` : '';
+                    
                     let contentHtml = `<div class="content-box">📄 증상: ${escapeHTML(item.content || '내용 없음')}</div>`;
                     let memoHtml    = item.archiveMemo ? `<div class="progress-memo" style="border-left-color:#ff4757; background:#fff0f0; color:#d63031;">📝 [완료 메모] ${escapeHTML(item.archiveMemo)}</div>` : '';
                     let srcTag = item.source === 'cnet' ? '<span style="color:#ff4757;">[씨넷]</span>' : '<span style="color:#0056b3;">[일반]</span>';
-                    
-                    // 🌟 1. 유무상 뱃지 생성 로직 추가
                     let costBadge = item.costType ? `<span style="font-weight:bold; color:${item.costType.includes('무상') ? '#28a745' : '#dc3545'};">[${escapeHTML(item.costType)}]</span> ` : '';
+                    
                     html += `
                         <div class="list-item archive" data-idx="${obj.idx}" data-type="archive" data-asnum="${escapeHTML(item.asNum)}">
                             <span class="as-num">${srcTag} ${escapeHTML(item.asNum)}</span>
                             <span class="addr-text tmap-link" data-idx="${obj.idx}" data-type="archive" style="color:#0056b3; cursor:pointer;">🧭 ${escapeHTML(item.addr)} <span style="font-size:10px; font-weight:normal; text-decoration:underline; color:#666;">(티맵)</span></span>
-                            <div class="info-text">👤 ${escapeHTML(item.name)} | ${phoneLink}</div>
-                            <div class="info-text" style="color:#444;">${costBadge}🏷️ ${escapeHTML(item.modelName)}</div> ${escapeHTML(item.modelName)}</div>
+                            <div class="info-text">👤 ${escapeHTML(item.name)} | ${phoneLink} ${smsBtn}</div>
+                            <div class="info-text" style="color:#444;">${costBadge}🏷️ ${escapeHTML(item.modelName)}</div>
                             ${contentHtml}${memoHtml}
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; border-top:1px dashed #ddd; padding-top:8px;">
                                 <span style="font-size:11px; color:#777; font-weight:bold;">🔄 방문 순서 조정</span>
@@ -486,6 +515,7 @@
                 if (moveBtn.dataset.action === 'down') moveArchiveDownMobile(idx, e);
                 return;
             }
+            if (e.target.closest('.sms-btn')) return; // 주차등록 버튼 버블링 방지
             const tmapEl = e.target.closest('.tmap-link');
             if (tmapEl) { e.stopPropagation(); openTmap(tmapEl.dataset.type, parseInt(tmapEl.dataset.idx), e); return; }
             if (e.target.tagName === 'A') return;
@@ -672,7 +702,17 @@
             document.getElementById('memoDateStr').innerText = `(${todayStr})`;
             document.getElementById('memoToday').value = dailyMemos[todayStr] || "";
             document.getElementById('fixedAddrInput').value = fixedStartAddr || "";
+            
+            // 🌟 3. 설정 탭 오픈 시 저장된 문자 템플릿 로드
+            document.getElementById('smsTemplateInput').value = smsTemplate || "";
+            
             renderAliasList();
+        }
+
+        // 🌟 4. 문자 템플릿 저장 함수 추가
+        function saveSmsTemplate() {
+            smsTemplate = document.getElementById('smsTemplateInput').value;
+            save();
         }
 
         function saveMemoToday() {
@@ -753,7 +793,8 @@
         }
 
         function backupData() {
-            const data = { Todo:savedData, CnetTodo:cnetData, Archive:archiveData, AddressAlias:addressAlias, FixedAddr:fixedStartAddr, DailyMemos:dailyMemos };
+            // 🌟 백업 데이터에 SmsTemplate 추가
+            const data = { Todo:savedData, CnetTodo:cnetData, Archive:archiveData, AddressAlias:addressAlias, FixedAddr:fixedStartAddr, DailyMemos:dailyMemos, SmsTemplate:smsTemplate };
             const blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
             const url  = URL.createObjectURL(blob);
             const a    = document.createElement('a'); a.href=url; a.download=`YSOL_Mobile_JSON_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.json`; a.click(); URL.revokeObjectURL(url);
@@ -771,6 +812,9 @@
                     if (parsed.AddressAlias) addressAlias   = parsed.AddressAlias;
                     if (parsed.FixedAddr)    fixedStartAddr = parsed.FixedAddr;
                     if (parsed.DailyMemos)   dailyMemos     = parsed.DailyMemos;
+                    // 🌟 복구 데이터에 SmsTemplate 덮어쓰기
+                    if (parsed.SmsTemplate !== undefined) smsTemplate = parsed.SmsTemplate;
+                    
                     save(); renderViews(); alert("✨ 모바일 복구 및 클라우드 동기화 완료!");
                 } catch(err) { alert("⚠️ 파일 형식 오류"); }
             };
@@ -816,5 +860,3 @@
     </script>
 </body>
 </html>
-
-
