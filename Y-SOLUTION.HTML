@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>Y-Solution v1.8.28 (Cloud Master - Underbar Fix)</title>
+    <title>Y-Solution v1.8.29 (Smart Cost Parser)</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -301,7 +301,7 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec";
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.28' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.29' };
 
         let isDragging = false;
         let isTyping = false; 
@@ -1020,7 +1020,7 @@
             items.slice().reverse().forEach(item => { let typeStr = item.source === 'cnet' ? '씨넷' : '일반'; tableRows += `<tr style="page-break-inside: avoid; page-break-after: auto;"><td style="text-align:center; padding:8px;"><b>${seq++}</b><br><span style="font-size:11px; color:#333;">[${typeStr}]</span></td><td style="padding:10px; line-height:1.5;"><b>[${escapeHTML(item.asNum)}]</b><br>[고객] ${escapeHTML(item.name)||'미상'} (${escapeHTML(item.tel)||'번호없음'})<br>[주소] <b>${escapeHTML(item.addr)}</b></td><td style="padding:10px; line-height:1.5;">[품목] <b>${escapeHTML(item.modelName)||'기재없음'}</b> (${escapeHTML(item.costType)||'미분류'})<br>[증상] ${escapeHTML(item.content)||''}<br><span style="font-size:11px; color:#333;">${item.archiveMemo ? '[메모] '+escapeHTML(item.archiveMemo) : ''}</span></td><td style="padding:10px; height:120px; vertical-align:top; color:#555;"></td><td style="text-align:center; font-size:18px;">${checkMark}</td></tr>`; }); openPrintWindow(title, tableRows);
         }
 
-        // 🌟 수정된 지능형 엑셀 파서 (handleFiles)
+        // 🌟 지능형 엑셀 파서 (v1.8.29 - 유/무상 판별 로직 고도화)
         async function handleFiles(event) {
             try {
                 ReportManager.clear(); 
@@ -1038,7 +1038,7 @@
                             if (!rows[i]) continue; 
                             const rowStr = rows[i].map(c => String(c||'').replace(/\s/g,'')).join('');
                             
-                            // 🌟 [수정 1] 헤더 판별 조건 강화: 세로형(작업확인서)이 리스트로 오해받지 않도록, 한 줄에 '접수번호'와 '주소/현장명/품목/연락처'가 같이 있어야 함
+                            // 🌟 헤더 판별 조건: 세로형(작업확인서)이 리스트로 오해받지 않도록, 한 줄에 '접수번호'와 '주소/현장명/품목/연락처'가 같이 있어야 함
                             if (rowStr.includes('접수번호') && (rowStr.includes('주소') || rowStr.includes('현장명') || rowStr.includes('품목') || rowStr.includes('연락처'))) {
                                 headerRowIdx = i;
                                 
@@ -1075,7 +1075,7 @@
                                 let row = rows[r]; if (!row || row.length === 0 || !row.some(c => String(c).trim() !== '')) continue;
                                 
                                 let asNum = colMap.asNum !== undefined ? String(row[colMap.asNum]||'').trim() : ''; 
-                                // 🌟 [수정 2] 씨넷은 접수번호에 하이픈(-)이 없으므로 includes('-') 조건 삭제
+                                // 🌟 씨넷은 접수번호에 하이픈(-)이 없으므로 includes('-') 조건은 사용하지 않음
                                 if (!asNum || asNum === '접수번호') continue;
 
                                 let baseAddr = colMap.addr !== undefined ? String(row[colMap.addr]||'').trim() : ''; 
@@ -1089,11 +1089,24 @@
                                 if (!addr) continue;
 
                                 let costRaw = colMap.cost !== undefined ? String(row[colMap.cost]||'') : ''; 
-                                let costType = costRaw.includes('유상') ? '유상' : (costRaw.includes('무상') ? '무상' : '');
+                                let contentRaw = colMap.content !== undefined ? String(row[colMap.content]||'').trim() : '';
+                                
+                                // 🌟 [수정 1] 씨넷/일반 유무상 자동 판별 로직 세분화
+                                let costType = '';
+                                if (isCnet) {
+                                    // 씨넷: '유상'이라는 단어가 비용란이나 내용란 어디에든 있으면 유상, 그 외에는 무조건 무상
+                                    if (costRaw.includes('유상') || contentRaw.includes('유상')) {
+                                        costType = '유상';
+                                    } else {
+                                        costType = '무상';
+                                    }
+                                } else {
+                                    // 일반: 기존 로직대로 명시된 텍스트 기반 분류
+                                    costType = costRaw.includes('유상') ? '유상' : (costRaw.includes('무상') ? '무상' : '');
+                                }
                                 
                                 let modelName = colMap.model !== undefined ? String(row[colMap.model]||'').trim() : '';
                                 let name = colMap.name !== undefined ? String(row[colMap.name]||'').trim() : '고객';
-                                let contentRaw = colMap.content !== undefined ? String(row[colMap.content]||'').trim() : '';
                                 
                                 let telRaw = colMap.tel !== undefined ? String(row[colMap.tel]||'').trim() : ''; 
                                 if (!telRaw && colMap.repTel !== undefined) { telRaw = String(row[colMap.repTel]||'').trim(); }
@@ -1123,7 +1136,7 @@
                                 }
                             }
                         } else {
-                            // [기존 기능 보존] 작업 완료 확인서 (세로형 데이터) 처리 로직
+                            // 🌟 [수정 2] 세로형 작업 완료 확인서 (일반 대기열) 파싱 로직 보강
                             let info = { source:'general', asNum:"", addr:"", name:"", content:"", date:"", tel:"", costType:"", modelName:"" }; 
                             let sheetText = rows.map(r=>r.join(" ")).join(" \n"); let fullContent = []; let tempTel = ""; let tempName = "";
                             rows.forEach((row, r) => {
@@ -1132,11 +1145,20 @@
                                     let cellRaw = String(row[c]||'').trim(); let key = cellRaw.replace(/\s/g,''); if (!key) continue;
                                     const getVal = () => { for(let i=c+1; i<row.length; i++) { if (row[i]) return String(row[i]).trim(); } if (rows[r+1] && rows[r+1][c]) return String(rows[r+1][c]).trim(); return ""; }; 
                                     let val = getVal();
+                                    
                                     if (key.includes('접수번호') || key.includes('AS번호')) info.asNum = val; 
                                     else if (key.includes('접수일') || key.includes('접수일자')) { if (!isNaN(val) && Number(val) > 20000) info.date = new Date(Math.round((Number(val) - 25569) * 86400 * 1000)).toISOString().split('T')[0]; else info.date = val.replace(/\./g, '-').replace(/\//g, '-'); }
                                     else if (key.includes('주소') || key.includes('방문지')) info.addr = val;
                                     else if (key.includes('모델') || key.includes('품목')) info.modelName = val; 
-                                    else if (key.includes('비용구분') || key.includes('유/무상')) info.costType = val.includes('유상') ? '유상' : val.includes('무상') ? '무상' : val.replace(/[○●]/g,"");
+                                    
+                                    // 🌟 세로형 서식 특수문자 인식 로직 (○무상 ●유상 혼용 방지)
+                                    else if (key.includes('비용구분') || key.includes('사업자유/무상') || key.includes('유/무상')) {
+                                        let cleanVal = val.replace(/\s/g, '');
+                                        if (cleanVal.includes('●유상') || cleanVal.includes('■유상') || cleanVal.includes('유상(O)')) info.costType = '유상';
+                                        else if (cleanVal.includes('●무상') || cleanVal.includes('■무상') || cleanVal.includes('무상(O)')) info.costType = '무상';
+                                        else info.costType = val.includes('유상') ? '유상' : (val.includes('무상') ? '무상' : val.replace(/[○●]/g,"").trim());
+                                    }
+                                    
                                     else if (key.includes('고객명') || key.includes('성명') || key.includes('충전기번호')) { if (val && val !== "미상") tempName = val; }
                                     else if (key.includes('연락처') || key.includes('전화') || key.includes('휴대폰')) { let phone = formatPhoneNumber(val); if (phone && !tempTel) tempTel = phone; }
                                     else if (key.includes('접수내용') || key.includes('증상') || key.includes('특이사항') || key.includes('기타사항') || key.includes('상세') || key.includes('원인')) { if (val && !fullContent.includes(val)) fullContent.push(`[${cellRaw}] ${val}`); }
