@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>Y-Solution v1.8.29 (Smart Cost Parser)</title>
+    <title>Y-Solution v1.8.30 (Smart Cost Parser & Pending List)</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -80,12 +80,18 @@
         #routeBox.hidden { transform: translateX(calc(100% + 15px)); }
         .route-toggle-btn { position: absolute; left: -25px; top: 15px; width: 25px; height: 40px; background: #fee500; color: #111; border: 1px solid #ccc; border-right: none; border-radius: 6px 0 0 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
 
-        #memoBox { position: absolute; top: 10px; left: 10px; width: 260px; height: 320px; background: rgba(255,255,255,0.95); border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000; padding: 10px; transition: transform 0.3s ease-in-out; transform: translateX(0); display: flex; flex-direction: column; }
+        /* 🌟 메모 & 보류함 컨테이너 */
+        #memoBox { position: absolute; top: 10px; left: 10px; width: 280px; max-height: 80vh; background: rgba(255,255,255,0.95); border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000; padding: 10px; transition: transform 0.3s ease-in-out; transform: translateX(0); display: flex; flex-direction: column; }
         #memoBox.hidden { transform: translateX(calc(-100% - 15px)); }
         .memo-toggle-btn { position: absolute; right: -25px; top: 15px; width: 25px; height: 40px; background: #28a745; color: #fff; border: 1px solid #ccc; border-left: none; border-radius: 0 6px 6px 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
         .memo-archive-item { background: #f8f9fa; border: 1px solid #ddd; padding: 6px; border-radius: 6px; margin-bottom: 6px; font-size: 11px; color: #444; white-space: pre-wrap; word-break: break-all; }
 
-        textarea.route-ta { width: 100%; height: 100px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px; box-sizing: border-box; padding: 6px; resize: none; font-family: 'Consolas', monospace; }
+        textarea.route-ta { width: 100%; height: 80px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px; box-sizing: border-box; padding: 6px; resize: none; font-family: 'Consolas', monospace; }
+
+        /* 🌟 임시보류 아이템 스타일 */
+        .pending-item { background: #fff; border: 1px solid #ccc; padding: 6px; border-radius: 6px; margin-bottom: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .btn-pending-action { padding: 2px 6px; font-size: 10px; font-weight: bold; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #f8f9fa; }
+        .btn-pending-action:hover { background: #e2e6ea; }
 
         .modal-bg { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; }
         .modal-content { background: #fff; padding: 20px; border-radius: 8px; width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 90vh; }
@@ -140,7 +146,8 @@
                         <button class="btn-main" style="background:#28a745;" onclick="moveToTimeline('general', 'today')">🎯 D-Day</button>
                     </div>
                     <div class="btn-group">
-                        <button class="btn-main" style="background:#343a40; width:100%;" onclick="deleteSelected('general')">🗑️ 선택 삭제</button>
+                        <button class="btn-main" style="background:#6c757d; flex:1;" onclick="moveToPending('general')">⏸️ 선택 보류</button>
+                        <button class="btn-main" style="background:#343a40; flex:1;" onclick="deleteSelected('general')">🗑️ 선택 삭제</button>
                     </div>
                 </div>
                 <div id="listGen" class="list-container"></div>
@@ -150,15 +157,19 @@
                 <div id="memoBox">
                     <button class="memo-toggle-btn" id="memoToggleBtn" onclick="toggleMemoBox()">◀</button>
                     <strong style="color:#111; font-size:12px; margin-bottom:4px; display:block;">📝 일일 메모장 <span id="memoDateStr" style="color:#0056b3;"></span></strong>
-                    <textarea id="memoToday" class="route-ta" style="height: 90px; flex:none; background:#fffdf2; border:1px solid #fee500;" oninput="saveMemoToday()" onfocus="isTyping=true;" onblur="isTyping=false;" placeholder="오늘의 메모를 자유롭게 입력하세요... (자동저장)"></textarea>
-                    <strong style="color:#555; font-size:11px; margin-top:6px; padding-bottom:4px; border-bottom:1px solid #ddd; display:block;">📥 과거 메모 보관함</strong>
-                    <div id="memoArchiveList" style="flex:1; overflow-y:auto; margin-top:4px; padding-right:4px;"></div>
+                    <textarea id="memoToday" class="route-ta" style="flex:none; background:#fffdf2; border:1px solid #fee500;" oninput="saveMemoToday()" onfocus="isTyping=true;" onblur="isTyping=false;" placeholder="오늘의 메모를 자유롭게 입력하세요... (자동저장)"></textarea>
+                    
+                    <strong style="color:#111; font-size:12px; margin-top:12px; padding-bottom:4px; border-bottom:1px solid #ddd; display:block;">⏸️ 임시보류/중요 접수 <span id="pendingCountStr" style="color:#dc3545;">0건</span></strong>
+                    <div id="pendingListArea" style="max-height:220px; overflow-y:auto; padding:4px 0; border-bottom:1px solid #eee; display:flex; flex-direction:column;"></div>
+
+                    <strong style="color:#555; font-size:11px; margin-top:8px; padding-bottom:4px; border-bottom:1px solid #ddd; display:block;">📥 과거 메모 보관함</strong>
+                    <div id="memoArchiveList" style="flex:1; max-height:120px; overflow-y:auto; margin-top:4px; padding-right:4px;"></div>
                 </div>
 
                 <div id="routeBox">
                     <button class="route-toggle-btn" id="routeToggleBtn" onclick="toggleRouteBox()">▶</button>
                     <strong style="color:#111; font-size:12px;">📝 통합 AI 스케줄링 경로</strong>
-                    <textarea id="routeText" class="route-ta" readonly></textarea>
+                    <textarea id="routeText" class="route-ta" readonly style="height:100px;"></textarea>
                     <button class="btn-main" style="background:#4a90e2; width:100%; padding:6px; margin-top:4px; margin-bottom:6px;" onclick="copyText()">경로 복사하기</button>
                     
                     <strong style="color:#111; font-size:11px; display:block; border-top:1px solid #ddd; padding-top:6px; margin-top:2px;">🏠 고정 거점 및 클라우드 연동</strong>
@@ -204,7 +215,8 @@
                         <button class="btn-main" style="background:#28a745;" onclick="moveToTimeline('cnet', 'today')">🎯 D-Day</button>
                     </div>
                     <div class="btn-group">
-                        <button class="btn-main" style="background:#343a40; width:100%;" onclick="deleteSelected('cnet')">🗑️ 선택 삭제</button>
+                        <button class="btn-main" style="background:#6c757d; flex:1;" onclick="moveToPending('cnet')">⏸️ 선택 보류</button>
+                        <button class="btn-main" style="background:#343a40; flex:1;" onclick="deleteSelected('cnet')">🗑️ 선택 삭제</button>
                     </div>
                 </div>
                 <div id="listCnet" class="list-container"></div>
@@ -301,7 +313,7 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec";
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.29' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.30' };
 
         let isDragging = false;
         let isTyping = false; 
@@ -330,6 +342,10 @@
         var cnetData = StorageManager.get('CnetTodo', []);
         var selectedCnet = StorageManager.get('CnetSelected', []);
         var archiveData = StorageManager.get('Archive', []);
+        
+        // 🌟 [신규] 보류 데이터 배열 추가
+        var pendingData = StorageManager.get('Pending', []);
+        
         var dailyMemos = StorageManager.get('DailyMemos', {});
         var currentEditIdx = -1;
         var fixedStartAddr = StorageManager.get('FixedAddr', "경기도 오산시 한신대133번길 12-1");
@@ -352,12 +368,14 @@
                     if (json.Todo) savedData = json.Todo.filter(item => item !== null);
                     if (json.CnetTodo) cnetData = json.CnetTodo.filter(item => item !== null);
                     if (json.Archive) archiveData = json.Archive.filter(item => item !== null);
+                    // 🌟 클라우드에서 보류 데이터 가져오기
+                    if (json.Pending) pendingData = json.Pending.filter(item => item !== null);
                     if (json.AddressAlias) addressAlias = json.AddressAlias;
                     if (json.FixedAddr) fixedStartAddr = json.FixedAddr;
                     if (json.DailyMemos) dailyMemos = json.DailyMemos;
                     
                     StorageManager.set('Todo', savedData); StorageManager.set('CnetTodo', cnetData); StorageManager.set('Archive', archiveData);
-                    StorageManager.set('AddressAlias', addressAlias); StorageManager.set('FixedAddr', fixedStartAddr); StorageManager.set('DailyMemos', dailyMemos);
+                    StorageManager.set('Pending', pendingData); StorageManager.set('AddressAlias', addressAlias); StorageManager.set('FixedAddr', fixedStartAddr); StorageManager.set('DailyMemos', dailyMemos);
                 }
             } catch(e) {}
             hideLoader();
@@ -366,7 +384,8 @@
         async function saveToCloud(isManual = false) {
             if (!GAS_API_URL || GAS_API_URL === "YOUR_WEB_APP_URL_HERE") return;
             if (isManual) showLoader();
-            let payload = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos };
+            // 🌟 페이로드에 Pending 포함
+            let payload = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, Pending: pendingData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos };
             try {
                 await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify(payload) });
                 if(isManual) alert("☁️ 현재 PC 데이터가 클라우드에 완벽하게 덮어씌워졌습니다!");
@@ -376,7 +395,7 @@
 
         function save() {
             StorageManager.set('Todo', savedData); StorageManager.set('CnetTodo', cnetData); StorageManager.set('Archive', archiveData);
-            StorageManager.set('AddressAlias', addressAlias); StorageManager.set('FixedAddr', fixedStartAddr); StorageManager.set('DailyMemos', dailyMemos);
+            StorageManager.set('Pending', pendingData); StorageManager.set('AddressAlias', addressAlias); StorageManager.set('FixedAddr', fixedStartAddr); StorageManager.set('DailyMemos', dailyMemos);
             clearTimeout(cloudSaveTimer); cloudSaveTimer = setTimeout(() => { saveToCloud(false); }, 2000);
         }
 
@@ -525,10 +544,16 @@
         function toggleRouteBox() { const box = document.getElementById('routeBox'); const btn = document.getElementById('routeToggleBtn'); box.classList.toggle('hidden'); btn.innerText = box.classList.contains('hidden') ? '◀' : '▶'; }
         function toggleMemoBox() { const box = document.getElementById('memoBox'); const btn = document.getElementById('memoToggleBtn'); box.classList.toggle('hidden'); btn.innerText = box.classList.contains('hidden') ? '▶' : '◀'; }
 
+        // 🌟 메모장 및 보류함 통합 렌더링 함수
         function renderMemos() {
             let todayStr = getLocalDateString(new Date());
             document.getElementById('memoDateStr').innerText = `(${todayStr})`;
             if(!isTyping) { document.getElementById('memoToday').value = dailyMemos[todayStr] || ""; }
+            
+            // 보류함 렌더링
+            renderPendingList();
+
+            // 과거 메모 렌더링
             const archiveArea = document.getElementById('memoArchiveList'); archiveArea.innerHTML = '';
             let sortedDates = Object.keys(dailyMemos).sort((a,b) => b.localeCompare(a));
             sortedDates.forEach(date => {
@@ -538,6 +563,79 @@
                     archiveArea.appendChild(div);
                 }
             });
+        }
+        
+        // 🌟 [신규] 보류 리스트 렌더링 함수
+        function renderPendingList() {
+            const area = document.getElementById('pendingListArea');
+            if (!area) return;
+            area.innerHTML = '';
+            document.getElementById('pendingCountStr').innerText = pendingData.length + '건';
+
+            if (pendingData.length === 0) {
+                area.innerHTML = '<div style="font-size:11px; color:#888; text-align:center; padding:15px;">보류된 항목이 없습니다.</div>';
+                return;
+            }
+
+            pendingData.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'pending-item';
+                let srcTag = item.source === 'cnet' ? '<span style="color:#ff4757;">[씨넷]</span>' : '<span style="color:#0056b3;">[일반]</span>';
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                        <strong style="font-size:11px;">${srcTag} ${escapeHTML(item.asNum)}</strong>
+                        <span style="font-size:9px; color:#777;">보류일: ${escapeHTML(item.pendingDate||'')}</span>
+                    </div>
+                    <div style="font-size:11px; color:#333; margin-bottom:2px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(item.name)} | ${escapeHTML(item.addr)}</div>
+                    <div style="font-size:10px; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:#f8f9fa; padding:2px 4px; border-radius:3px;">${escapeHTML(item.content||'내용없음')}</div>
+                    <div style="display:flex; justify-content:flex-end; gap:4px; margin-top:4px;">
+                        <button class="btn-pending-action" onclick="restorePending(${idx})">↩️ 대기열 복구</button>
+                        <button class="btn-pending-action" style="color:#dc3545;" onclick="deletePending(${idx})">❌</button>
+                    </div>
+                `;
+                area.appendChild(div);
+            });
+        }
+
+        // 🌟 [신규] 보류함으로 이동시키는 함수
+        function moveToPending(type) {
+            let selArr = type === 'general' ? selectedGen : selectedCnet;
+            let dataArr = type === 'general' ? savedData : cnetData;
+            
+            if (selArr.length === 0) return alert("보류할 항목을 선택해주세요.");
+            if (!confirm("선택한 항목을 [임시보류함]으로 이동하시겠습니까?\n\n※ 임시보류 시 지도에서 핀이 숨겨집니다.\n※ 나중에 언제든 대기열로 다시 복구할 수 있습니다.")) return;
+
+            let itemsToPending = selArr.map(idx => {
+                let item = dataArr[idx];
+                item.source = type; // 원래 출처 기억
+                item.pendingDate = getLocalDateString(new Date()); // 보류한 날짜 기록
+                return item;
+            });
+
+            const sortedTargets = [...selArr].sort((a,b) => b-a);
+            sortedTargets.forEach(idx => dataArr.splice(idx, 1));
+            pendingData.push(...itemsToPending);
+
+            if (type === 'general') selectedGen = []; else selectedCnet = [];
+            save(); render();
+        }
+
+        // 🌟 [신규] 보류함에서 원상 복구하는 함수
+        function restorePending(idx) {
+            if(confirm("이 항목을 원래 있던 대기열로 복구하여 지도에 다시 띄우시겠습니까?")) {
+                let item = pendingData.splice(idx, 1)[0];
+                if (item.source === 'cnet') cnetData.unshift(item);
+                else savedData.unshift(item);
+                save(); render();
+            }
+        }
+
+        // 🌟 [신규] 보류함에서 영구 삭제하는 함수
+        function deletePending(idx) {
+            if(confirm("이 항목을 시스템에서 영구 삭제하시겠습니까?")) {
+                pendingData.splice(idx, 1);
+                save(); render();
+            }
         }
 
         function saveMemoToday() { let todayStr = getLocalDateString(new Date()); dailyMemos[todayStr] = document.getElementById('memoToday').value; save(); }
@@ -594,6 +692,7 @@
 
             document.getElementById('genCountBadge').innerText = `총 ${savedData.length}건`;
             document.getElementById('cnetCountBadge').innerText = `총 ${cnetData.length}건`;
+            
             renderMemos(); renderList('general'); renderList('cnet'); renderArchiveList(); updateMapMarkers(); updateSummary(); 
 
             setTimeout(() => {
@@ -909,6 +1008,7 @@
         }
 
         function updateMapMarkers() {
+            // 🌟 보류함 데이터(pendingData)는 이 함수에서 마커를 그리지 않기 때문에 지도에서 자동으로 숨겨집니다.
             if (!clusterer) return; activeMarkers.forEach(obj => { if (obj.marker) kakao.maps.event.removeListener(obj.marker, 'click', obj.handler); });
             activeMarkers = []; clusterer.clear(); let addrCounts = {}; const offsetBase = 0.00025; 
             const offsets = [[0,0], [offsetBase,0], [0,offsetBase], [-offsetBase,0], [0,-offsetBase], [offsetBase,offsetBase], [-offsetBase,offsetBase], [-offsetBase,-offsetBase], [offsetBase,-offsetBase]];
@@ -970,7 +1070,8 @@
         }
 
         function backupData() {
-            const data = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos };
+            // 🌟 백업할 때 Pending 데이터 포함
+            const data = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, Pending: pendingData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos };
             const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"}); const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, ''); a.download = `YSOL_Backup_${dateStr}.json`; a.click(); URL.revokeObjectURL(url);
         }
@@ -980,9 +1081,15 @@
             let wb = XLSX.utils.book_new();
             const formatData = (arr) => arr.map(item => ({ '접수번호': item.asNum, '주소': item.addr, '고객명': item.name, '연락처': item.tel, '모델명': item.modelName, '비용구분': item.costType, '증상/내용': item.content, '메모': item.memo || '' }));
             const formatArchive = (arr) => arr.map(item => ({ '완료일자': item.completedDate || '', '출처': item.source === 'cnet' ? '씨넷' : '일반', '접수번호': item.asNum, '주소': item.addr, '고객명': item.name, '연락처': item.tel, '모델명': item.modelName, '비용구분': item.costType, '완료메모': item.archiveMemo || '' }));
+            
             let genWs = XLSX.utils.json_to_sheet(formatData(savedData)); XLSX.utils.book_append_sheet(wb, genWs, "일반대기열");
             let cnetWs = XLSX.utils.json_to_sheet(formatData(cnetData)); XLSX.utils.book_append_sheet(wb, cnetWs, "씨넷대기열");
             let arcWs = XLSX.utils.json_to_sheet(formatArchive(archiveData)); XLSX.utils.book_append_sheet(wb, arcWs, "완료일정");
+            // 🌟 임시보류 탭도 엑셀로 출력 추가
+            if (pendingData.length > 0) {
+                let pendingWs = XLSX.utils.json_to_sheet(formatData(pendingData)); XLSX.utils.book_append_sheet(wb, pendingWs, "임시보류함");
+            }
+
             let dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, ''); XLSX.writeFile(wb, `YSOL_Data_Excel_${dateStr}.xlsx`);
         }
 
@@ -992,7 +1099,10 @@
                 let parsed; try { let cleanText = e.target.result.replace(/^\uFEFF/, '').trim(); parsed = JSON.parse(cleanText); } catch (err) { alert("⚠️ 파일 형식이 잘못되었습니다."); return; }
                 try {
                     if (parsed.Todo) savedData = parsed.Todo.filter(item => item !== null); if (parsed.CnetTodo) cnetData = parsed.CnetTodo.filter(item => item !== null);
-                    if (parsed.Archive) archiveData = parsed.Archive.filter(item => item !== null); if (parsed.AddressAlias) addressAlias = parsed.AddressAlias;
+                    if (parsed.Archive) archiveData = parsed.Archive.filter(item => item !== null); 
+                    // 🌟 복구할 때 Pending 데이터 포함
+                    if (parsed.Pending) pendingData = parsed.Pending.filter(item => item !== null);
+                    if (parsed.AddressAlias) addressAlias = parsed.AddressAlias;
                     if (parsed.FixedAddr) fixedStartAddr = parsed.FixedAddr; if (parsed.DailyMemos) dailyMemos = parsed.DailyMemos;
                     selectedGen = []; selectedCnet = []; save(); render(); alert("✨ 복구 완료!");
                 } catch (err2) { alert("⚠️ 오류: " + err2.message); }
@@ -1020,7 +1130,6 @@
             items.slice().reverse().forEach(item => { let typeStr = item.source === 'cnet' ? '씨넷' : '일반'; tableRows += `<tr style="page-break-inside: avoid; page-break-after: auto;"><td style="text-align:center; padding:8px;"><b>${seq++}</b><br><span style="font-size:11px; color:#333;">[${typeStr}]</span></td><td style="padding:10px; line-height:1.5;"><b>[${escapeHTML(item.asNum)}]</b><br>[고객] ${escapeHTML(item.name)||'미상'} (${escapeHTML(item.tel)||'번호없음'})<br>[주소] <b>${escapeHTML(item.addr)}</b></td><td style="padding:10px; line-height:1.5;">[품목] <b>${escapeHTML(item.modelName)||'기재없음'}</b> (${escapeHTML(item.costType)||'미분류'})<br>[증상] ${escapeHTML(item.content)||''}<br><span style="font-size:11px; color:#333;">${item.archiveMemo ? '[메모] '+escapeHTML(item.archiveMemo) : ''}</span></td><td style="padding:10px; height:120px; vertical-align:top; color:#555;"></td><td style="text-align:center; font-size:18px;">${checkMark}</td></tr>`; }); openPrintWindow(title, tableRows);
         }
 
-        // 🌟 지능형 엑셀 파서 (v1.8.29 - 유/무상 판별 로직 고도화)
         async function handleFiles(event) {
             try {
                 ReportManager.clear(); 
@@ -1038,7 +1147,6 @@
                             if (!rows[i]) continue; 
                             const rowStr = rows[i].map(c => String(c||'').replace(/\s/g,'')).join('');
                             
-                            // 🌟 헤더 판별 조건: 세로형(작업확인서)이 리스트로 오해받지 않도록, 한 줄에 '접수번호'와 '주소/현장명/품목/연락처'가 같이 있어야 함
                             if (rowStr.includes('접수번호') && (rowStr.includes('주소') || rowStr.includes('현장명') || rowStr.includes('품목') || rowStr.includes('연락처'))) {
                                 headerRowIdx = i;
                                 
@@ -1075,7 +1183,6 @@
                                 let row = rows[r]; if (!row || row.length === 0 || !row.some(c => String(c).trim() !== '')) continue;
                                 
                                 let asNum = colMap.asNum !== undefined ? String(row[colMap.asNum]||'').trim() : ''; 
-                                // 🌟 씨넷은 접수번호에 하이픈(-)이 없으므로 includes('-') 조건은 사용하지 않음
                                 if (!asNum || asNum === '접수번호') continue;
 
                                 let baseAddr = colMap.addr !== undefined ? String(row[colMap.addr]||'').trim() : ''; 
@@ -1091,17 +1198,14 @@
                                 let costRaw = colMap.cost !== undefined ? String(row[colMap.cost]||'') : ''; 
                                 let contentRaw = colMap.content !== undefined ? String(row[colMap.content]||'').trim() : '';
                                 
-                                // 🌟 [수정 1] 씨넷/일반 유무상 자동 판별 로직 세분화
                                 let costType = '';
                                 if (isCnet) {
-                                    // 씨넷: '유상'이라는 단어가 비용란이나 내용란 어디에든 있으면 유상, 그 외에는 무조건 무상
                                     if (costRaw.includes('유상') || contentRaw.includes('유상')) {
                                         costType = '유상';
                                     } else {
                                         costType = '무상';
                                     }
                                 } else {
-                                    // 일반: 기존 로직대로 명시된 텍스트 기반 분류
                                     costType = costRaw.includes('유상') ? '유상' : (costRaw.includes('무상') ? '무상' : '');
                                 }
                                 
@@ -1129,14 +1233,13 @@
                                 let info = { source: targetType, asNum, addr, searchTarget: baseAddr, name, tel, modelName, content: contentRaw, costType, date: dateStr, memo: "" };
                                 
                                 let targetDataArr = isCnet ? cnetData : savedData;
-                                if (!targetDataArr.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { 
+                                if (!targetDataArr.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum) && !pendingData.some(d => d.asNum===info.asNum)) { 
                                     SearchQueue.add(info, targetType); 
                                 } else { 
                                     ReportManager.addDuplicate(info.asNum, info.addr, info.name); 
                                 }
                             }
                         } else {
-                            // 🌟 [수정 2] 세로형 작업 완료 확인서 (일반 대기열) 파싱 로직 보강
                             let info = { source:'general', asNum:"", addr:"", name:"", content:"", date:"", tel:"", costType:"", modelName:"" }; 
                             let sheetText = rows.map(r=>r.join(" ")).join(" \n"); let fullContent = []; let tempTel = ""; let tempName = "";
                             rows.forEach((row, r) => {
@@ -1151,7 +1254,6 @@
                                     else if (key.includes('주소') || key.includes('방문지')) info.addr = val;
                                     else if (key.includes('모델') || key.includes('품목')) info.modelName = val; 
                                     
-                                    // 🌟 세로형 서식 특수문자 인식 로직 (○무상 ●유상 혼용 방지)
                                     else if (key.includes('비용구분') || key.includes('사업자유/무상') || key.includes('유/무상')) {
                                         let cleanVal = val.replace(/\s/g, '');
                                         if (cleanVal.includes('●유상') || cleanVal.includes('■유상') || cleanVal.includes('유상(O)')) info.costType = '유상';
@@ -1169,7 +1271,7 @@
                             if (!info.asNum) { let m = sheetText.match(/(?:AS)?\d{6,8}-\d{4,5}/i); info.asNum = m ? m[0].toUpperCase() : "미상-" + Math.floor(Math.random()*1000); }
                             if (info.addr) { 
                                 info.searchTarget = info.addr; 
-                                if (!savedData.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum)) { 
+                                if (!savedData.some(d => d.asNum===info.asNum) && !archiveData.some(d => d.asNum===info.asNum) && !pendingData.some(d => d.asNum===info.asNum)) { 
                                     SearchQueue.add(info, 'general'); 
                                 } else { 
                                     ReportManager.addDuplicate(info.asNum, info.addr, info.name); 
