@@ -534,11 +534,22 @@
         
         function deleteAlias(key) { if (confirm(`'${key}' 매핑을 삭제하시겠습니까?`)) { delete addressAlias[key]; StorageManager.set('AddressAlias', addressAlias); renderAliasList(); save(); } }
 
-        function resurrectFailedMarkers(newKey) {
+      function resurrectFailedMarkers(newKey) {
             let revivedCount = 0;
-            const reviveFromArr = (arr, type) => { arr.forEach((item, idx) => { if (!item || !item.lat && (item.searchTarget.includes(newKey) || item.addr.includes(newKey))) { SearchQueue.add(item, type, true, idx); revivedCount++; } }); };
-            reviveFromArr(savedData, 'general'); reviveFromArr(cnetData, 'cnet');
-            if(revivedCount > 0) alert(`✨ 방금 등록하신 조건으로 ${revivedCount}건의 데이터가 새 주소를 찾아 소급 적용되었습니다!`);
+            const reviveFromArr = (arr, type) => { 
+                arr.forEach((item, idx) => { 
+                    if (!item) return; // 빈 데이터가 있으면 건너뛰어 에러 방지
+                    
+                    // 🌟 핀 누락 여부(item.lat)와 상관없이, 추가한 단어가 주소에 포함되어 있으면 무조건 다시 매핑
+                    if (item.searchTarget.includes(newKey) || item.addr.includes(newKey)) { 
+                        SearchQueue.add(item, type, true, idx); 
+                        revivedCount++; 
+                    } 
+                }); 
+            };
+            reviveFromArr(savedData, 'general'); 
+            reviveFromArr(cnetData, 'cnet');
+            if(revivedCount > 0) alert(`✨ 방금 등록하신 조건으로 ${revivedCount}건의 데이터가 새 주소를 찾아 소급 적용(재매핑) 되었습니다!`);
         }
 
         function toggleRouteBox() { const box = document.getElementById('routeBox'); const btn = document.getElementById('routeToggleBtn'); box.classList.toggle('hidden'); btn.innerText = box.classList.contains('hidden') ? '◀' : '▶'; }
@@ -1286,3 +1297,4 @@
     </script>
 </body>
 </html>
+
