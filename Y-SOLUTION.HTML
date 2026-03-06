@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>Y-Solution v1.8.30 (Smart Cost Parser & Pending List)</title>
+    <title>Y-Solution v1.8.31 (Smart Cost Parser & Pending List)</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -313,7 +313,7 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec";
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.30' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.31' };
 
         let isDragging = false;
         let isTyping = false; 
@@ -343,7 +343,6 @@
         var selectedCnet = StorageManager.get('CnetSelected', []);
         var archiveData = StorageManager.get('Archive', []);
         
-        // 🌟 [신규] 보류 데이터 배열 추가
         var pendingData = StorageManager.get('Pending', []);
         
         var dailyMemos = StorageManager.get('DailyMemos', {});
@@ -368,7 +367,6 @@
                     if (json.Todo) savedData = json.Todo.filter(item => item !== null);
                     if (json.CnetTodo) cnetData = json.CnetTodo.filter(item => item !== null);
                     if (json.Archive) archiveData = json.Archive.filter(item => item !== null);
-                    // 🌟 클라우드에서 보류 데이터 가져오기
                     if (json.Pending) pendingData = json.Pending.filter(item => item !== null);
                     if (json.AddressAlias) addressAlias = json.AddressAlias;
                     if (json.FixedAddr) fixedStartAddr = json.FixedAddr;
@@ -384,7 +382,6 @@
         async function saveToCloud(isManual = false) {
             if (!GAS_API_URL || GAS_API_URL === "YOUR_WEB_APP_URL_HERE") return;
             if (isManual) showLoader();
-            // 🌟 페이로드에 Pending 포함
             let payload = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, Pending: pendingData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos };
             try {
                 await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify(payload) });
@@ -534,13 +531,11 @@
         
         function deleteAlias(key) { if (confirm(`'${key}' 매핑을 삭제하시겠습니까?`)) { delete addressAlias[key]; StorageManager.set('AddressAlias', addressAlias); renderAliasList(); save(); } }
 
-      function resurrectFailedMarkers(newKey) {
+        function resurrectFailedMarkers(newKey) {
             let revivedCount = 0;
             const reviveFromArr = (arr, type) => { 
                 arr.forEach((item, idx) => { 
-                    if (!item) return; // 빈 데이터가 있으면 건너뛰어 에러 방지
-                    
-                    // 🌟 핀 누락 여부(item.lat)와 상관없이, 추가한 단어가 주소에 포함되어 있으면 무조건 다시 매핑
+                    if (!item) return; 
                     if (item.searchTarget.includes(newKey) || item.addr.includes(newKey)) { 
                         SearchQueue.add(item, type, true, idx); 
                         revivedCount++; 
@@ -555,16 +550,13 @@
         function toggleRouteBox() { const box = document.getElementById('routeBox'); const btn = document.getElementById('routeToggleBtn'); box.classList.toggle('hidden'); btn.innerText = box.classList.contains('hidden') ? '◀' : '▶'; }
         function toggleMemoBox() { const box = document.getElementById('memoBox'); const btn = document.getElementById('memoToggleBtn'); box.classList.toggle('hidden'); btn.innerText = box.classList.contains('hidden') ? '▶' : '◀'; }
 
-        // 🌟 메모장 및 보류함 통합 렌더링 함수
         function renderMemos() {
             let todayStr = getLocalDateString(new Date());
             document.getElementById('memoDateStr').innerText = `(${todayStr})`;
             if(!isTyping) { document.getElementById('memoToday').value = dailyMemos[todayStr] || ""; }
             
-            // 보류함 렌더링
             renderPendingList();
 
-            // 과거 메모 렌더링
             const archiveArea = document.getElementById('memoArchiveList'); archiveArea.innerHTML = '';
             let sortedDates = Object.keys(dailyMemos).sort((a,b) => b.localeCompare(a));
             sortedDates.forEach(date => {
@@ -576,7 +568,6 @@
             });
         }
         
-        // 🌟 [신규] 보류 리스트 렌더링 함수
         function renderPendingList() {
             const area = document.getElementById('pendingListArea');
             if (!area) return;
@@ -608,7 +599,6 @@
             });
         }
 
-        // 🌟 [신규] 보류함으로 이동시키는 함수
         function moveToPending(type) {
             let selArr = type === 'general' ? selectedGen : selectedCnet;
             let dataArr = type === 'general' ? savedData : cnetData;
@@ -618,8 +608,8 @@
 
             let itemsToPending = selArr.map(idx => {
                 let item = dataArr[idx];
-                item.source = type; // 원래 출처 기억
-                item.pendingDate = getLocalDateString(new Date()); // 보류한 날짜 기록
+                item.source = type; 
+                item.pendingDate = getLocalDateString(new Date()); 
                 return item;
             });
 
@@ -631,7 +621,6 @@
             save(); render();
         }
 
-        // 🌟 [신규] 보류함에서 원상 복구하는 함수
         function restorePending(idx) {
             if(confirm("이 항목을 원래 있던 대기열로 복구하여 지도에 다시 띄우시겠습니까?")) {
                 let item = pendingData.splice(idx, 1)[0];
@@ -641,7 +630,6 @@
             }
         }
 
-        // 🌟 [신규] 보류함에서 영구 삭제하는 함수
         function deletePending(idx) {
             if(confirm("이 항목을 시스템에서 영구 삭제하시겠습니까?")) {
                 pendingData.splice(idx, 1);
@@ -1019,7 +1007,6 @@
         }
 
         function updateMapMarkers() {
-            // 🌟 보류함 데이터(pendingData)는 이 함수에서 마커를 그리지 않기 때문에 지도에서 자동으로 숨겨집니다.
             if (!clusterer) return; activeMarkers.forEach(obj => { if (obj.marker) kakao.maps.event.removeListener(obj.marker, 'click', obj.handler); });
             activeMarkers = []; clusterer.clear(); let addrCounts = {}; const offsetBase = 0.00025; 
             const offsets = [[0,0], [offsetBase,0], [0,offsetBase], [-offsetBase,0], [0,-offsetBase], [offsetBase,offsetBase], [-offsetBase,offsetBase], [-offsetBase,-offsetBase], [offsetBase,-offsetBase]];
@@ -1081,7 +1068,6 @@
         }
 
         function backupData() {
-            // 🌟 백업할 때 Pending 데이터 포함
             const data = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, Pending: pendingData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos };
             const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"}); const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, ''); a.download = `YSOL_Backup_${dateStr}.json`; a.click(); URL.revokeObjectURL(url);
@@ -1096,7 +1082,6 @@
             let genWs = XLSX.utils.json_to_sheet(formatData(savedData)); XLSX.utils.book_append_sheet(wb, genWs, "일반대기열");
             let cnetWs = XLSX.utils.json_to_sheet(formatData(cnetData)); XLSX.utils.book_append_sheet(wb, cnetWs, "씨넷대기열");
             let arcWs = XLSX.utils.json_to_sheet(formatArchive(archiveData)); XLSX.utils.book_append_sheet(wb, arcWs, "완료일정");
-            // 🌟 임시보류 탭도 엑셀로 출력 추가
             if (pendingData.length > 0) {
                 let pendingWs = XLSX.utils.json_to_sheet(formatData(pendingData)); XLSX.utils.book_append_sheet(wb, pendingWs, "임시보류함");
             }
@@ -1111,7 +1096,6 @@
                 try {
                     if (parsed.Todo) savedData = parsed.Todo.filter(item => item !== null); if (parsed.CnetTodo) cnetData = parsed.CnetTodo.filter(item => item !== null);
                     if (parsed.Archive) archiveData = parsed.Archive.filter(item => item !== null); 
-                    // 🌟 복구할 때 Pending 데이터 포함
                     if (parsed.Pending) pendingData = parsed.Pending.filter(item => item !== null);
                     if (parsed.AddressAlias) addressAlias = parsed.AddressAlias;
                     if (parsed.FixedAddr) fixedStartAddr = parsed.FixedAddr; if (parsed.DailyMemos) dailyMemos = parsed.DailyMemos;
@@ -1256,23 +1240,34 @@
                             rows.forEach((row, r) => {
                                 let rowStr = row.join("").replace(/\s/g, ""); if (rowStr.includes('처리기사') || rowStr.includes('담당기사') || rowStr.includes('배정기사') || rowStr.includes('기사명') || rowStr.includes('작성자') || rowStr.includes('보고자')) return;
                                 for (let c = 0; c < row.length; c++) {
-                                    let cellRaw = String(row[c]||'').trim(); let key = cellRaw.replace(/\s/g,''); if (!key) continue;
+                                    let cellRaw = String(row[c]||'').trim(); 
+                                    let key = cellRaw.replace(/\s/g,''); 
+                                    
+                                    // 🌟 핵심 수정 1: 문장이 너무 길면 항목 이름(Key)이 아니라고 판단하여 무시
+                                    if (!key || key.length > 20) continue; 
+                                    
                                     const getVal = () => { for(let i=c+1; i<row.length; i++) { if (row[i]) return String(row[i]).trim(); } if (rows[r+1] && rows[r+1][c]) return String(rows[r+1][c]).trim(); return ""; }; 
                                     let val = getVal();
                                     
-                                    if (key.includes('접수번호') || key.includes('AS번호')) info.asNum = val; 
-                                    else if (key.includes('접수일') || key.includes('접수일자')) { if (!isNaN(val) && Number(val) > 20000) info.date = new Date(Math.round((Number(val) - 25569) * 86400 * 1000)).toISOString().split('T')[0]; else info.date = val.replace(/\./g, '-').replace(/\//g, '-'); }
-                                    else if (key.includes('주소') || key.includes('방문지')) info.addr = val;
-                                    else if (key.includes('모델') || key.includes('품목')) info.modelName = val; 
-                                    
-                                    else if (key.includes('비용구분') || key.includes('사업자유/무상') || key.includes('유/무상')) {
-                                        let cleanVal = val.replace(/\s/g, '');
-                                        if (cleanVal.includes('●유상') || cleanVal.includes('■유상') || cleanVal.includes('유상(O)')) info.costType = '유상';
-                                        else if (cleanVal.includes('●무상') || cleanVal.includes('■무상') || cleanVal.includes('무상(O)')) info.costType = '무상';
-                                        else info.costType = val.includes('유상') ? '유상' : (val.includes('무상') ? '무상' : val.replace(/[○●]/g,"").trim());
+                                    // 🌟 핵심 수정 2: 이미 찾은 값은 덮어쓰지 않도록 방어 코드(if (!info...)) 추가
+                                    if (key.includes('접수번호') || key.includes('AS번호')) { if (!info.asNum) info.asNum = val; }
+                                    else if (key.includes('접수일') || key.includes('접수일자')) { 
+                                        if (!info.date) {
+                                            if (!isNaN(val) && Number(val) > 20000) info.date = new Date(Math.round((Number(val) - 25569) * 86400 * 1000)).toISOString().split('T')[0]; 
+                                            else info.date = val.replace(/\./g, '-').replace(/\//g, '-'); 
+                                        }
                                     }
-                                    
-                                    else if (key.includes('고객명') || key.includes('성명') || key.includes('충전기번호')) { if (val && val !== "미상") tempName = val; }
+                                    else if (key.includes('주소') || key.includes('방문지')) { if (!info.addr) info.addr = val; }
+                                    else if (key.includes('모델') || key.includes('품목')) { if (!info.modelName) info.modelName = val; } 
+                                    else if (key.includes('비용구분') || key.includes('사업자유/무상') || key.includes('유/무상')) {
+                                        if (!info.costType) {
+                                            let cleanVal = val.replace(/\s/g, '');
+                                            if (cleanVal.includes('●유상') || cleanVal.includes('■유상') || cleanVal.includes('유상(O)')) info.costType = '유상';
+                                            else if (cleanVal.includes('●무상') || cleanVal.includes('■무상') || cleanVal.includes('무상(O)')) info.costType = '무상';
+                                            else info.costType = val.includes('유상') ? '유상' : (val.includes('무상') ? '무상' : val.replace(/[○●]/g,"").trim());
+                                        }
+                                    }
+                                    else if (key.includes('고객명') || key.includes('성명') || key.includes('충전기번호')) { if (val && val !== "미상" && !tempName) tempName = val; }
                                     else if (key.includes('연락처') || key.includes('전화') || key.includes('휴대폰')) { let phone = formatPhoneNumber(val); if (phone && !tempTel) tempTel = phone; }
                                     else if (key.includes('접수내용') || key.includes('증상') || key.includes('특이사항') || key.includes('기타사항') || key.includes('상세') || key.includes('원인')) { if (val && !fullContent.includes(val)) fullContent.push(`[${cellRaw}] ${val}`); }
                                 }
@@ -1297,4 +1292,3 @@
     </script>
 </body>
 </html>
-
