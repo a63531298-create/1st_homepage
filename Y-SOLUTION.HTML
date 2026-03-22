@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>Y-Solution v1.8.31 (Smart Cost Parser & Pending List)</title>
+    <title>Y-Solution v1.8.33 (Smart Cost Parser & Pending List)</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -313,7 +313,7 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec";
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.31' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.33' };
 
         let isDragging = false;
         let isTyping = false; 
@@ -794,6 +794,44 @@
             listEl.appendChild(fragment);
         }
 
+        // 🌟 신규: 보관함 내 숫자 입력 순서 이동 함수
+        window.changeArchiveOrder = function(dateKey, originalIdx, inputElem) {
+            let targetRank = parseInt(inputElem.value, 10);
+            if (isNaN(targetRank) || targetRank < 1) {
+                inputElem.value = ''; 
+                return;
+            }
+
+            let indices = [];
+            archiveData.forEach((item, idx) => {
+                if ((item.completedDate || '이전 완료건') === dateKey) {
+                    indices.push(idx);
+                }
+            });
+
+            let items = indices.map(i => archiveData[i]);
+            let visualArr = items.slice().reverse();
+
+            let currentVisualIdx = visualArr.findIndex(item => item === archiveData[originalIdx]);
+            if (currentVisualIdx === -1) return;
+
+            let [movedItem] = visualArr.splice(currentVisualIdx, 1); 
+            
+            let newTargetIdx = targetRank - 1; 
+            if (newTargetIdx < 0) newTargetIdx = 0;
+            if (newTargetIdx > visualArr.length) newTargetIdx = visualArr.length;
+            
+            visualArr.splice(newTargetIdx, 0, movedItem); 
+
+            let newItemsArr = visualArr.slice().reverse();
+            indices.forEach((originalIdxPos, i) => {
+                archiveData[originalIdxPos] = newItemsArr[i];
+            });
+
+            save(); 
+            render(); 
+        };
+
         function moveArchiveUp(idx) { if (idx < archiveData.length - 1 && archiveData[idx].completedDate === archiveData[idx+1].completedDate) { [archiveData[idx], archiveData[idx+1]] = [archiveData[idx+1], archiveData[idx]]; save(); render(); } }
         function moveArchiveDown(idx) { if (idx > 0 && archiveData[idx].completedDate === archiveData[idx-1].completedDate) { [archiveData[idx], archiveData[idx-1]] = [archiveData[idx-1], archiveData[idx]]; save(); render(); } }
 
@@ -933,6 +971,7 @@
                     let pinWarning = !obj.item.lat ? `<span class="warning-badge" title="현장명 사전에 주소 일부분을 추가하세요">⚠️ 핀 누락</span>` : '';
                     const srcTag = obj.item.source === 'cnet' ? '<span style="color:#ff4757;">[씨넷]</span>' : '<span style="color:#4a90e2;">[일반]</span>';
 
+                    // 🌟 UI 교체 적용됨: 순서 입력창 추가
                     d.innerHTML = `
                         <div class="as-num-label ${obj.item.source === 'cnet' ? 'cnet' : ''}">
                             <span class="drag-handle" onmousedown="window.enableDrag(this)" onmouseup="window.disableDrag(this)" onmouseleave="window.disableDrag(this)">⣿</span>
@@ -944,7 +983,8 @@
                         <div class="content-box">📄 ${escapeHTML(obj.item.content||'내용 없음')}</div>
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
                             <input type="text" class="memo-input" style="flex:1; margin-right:4px;" placeholder="완료 메모..." value="${escapeHTML(obj.item.archiveMemo || '')}" onfocus="isTyping=true;" onblur="isTyping=false;" onchange="saveArchiveMemo(${obj.idx}, this.value)">
-                            <div style="display:flex; gap:2px;">
+                            <div style="display:flex; gap:2px; align-items:center;">
+                                <input type="number" style="width: 30px; font-size: 10px; padding: 1px; border: 1px solid #ccc; border-radius: 3px; text-align: center; margin-right: 2px;" placeholder="순번" title="원하는 순서를 입력하고 엔터를 누르세요" onfocus="isTyping=true;" onblur="isTyping=false;" onkeydown="if(event.key==='Enter') changeArchiveOrder('${dateKey}', ${obj.idx}, this)">
                                 <button class="arc-action-btn" title="위로" onclick="moveArchiveUp(${obj.idx})">🔼</button>
                                 <button class="arc-action-btn" title="아래로" onclick="moveArchiveDown(${obj.idx})">🔽</button>
                                 <button class="arc-action-btn" title="대기열 복구" onclick="restoreItem(${obj.idx})">↩️</button>
@@ -959,6 +999,7 @@
             area.appendChild(fragment); document.getElementById('arcTotalCount').innerText = `총 ${archiveData.length}건`;
         }
 
+        // 🌟 마커 렌더링 업데이트 (씨넷 마커 붉은색 분리 + title 속성으로 Hover 접수번호 표시)
         function showArchiveOnMap(dateKey) {
             if (!clusterer) return;
             activeMarkers.forEach(obj => { if (obj.marker) kakao.maps.event.removeListener(obj.marker, 'click', obj.handler); });
@@ -974,7 +1015,18 @@
                 const key = item.searchAddr || item.addr;
                 if (addrCounts[key] === undefined) addrCounts[key] = 0; let pCount = addrCounts[key]++; let off = offsets[pCount % offsets.length];
                 let displayLat = parseFloat(item.lat) + off[0]; let displayLng = parseFloat(item.lng) + off[1];
-                let mOpts = { position: new kakao.maps.LatLng(displayLat, displayLng) }; mOpts.image = new kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png', new kakao.maps.Size(24, 35)); mOpts.zIndex = 3;
+                
+                // 마우스 오버 시 접수번호 표시 속성 추가 (title)
+                let mOpts = { position: new kakao.maps.LatLng(displayLat, displayLng), title: item.asNum }; 
+                
+                // 씨넷과 일반 마커 분리 (붉은 별 / 푸른 별)
+                if (item.source === 'cnet') {
+                    mOpts.image = new kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png', new kakao.maps.Size(24, 35));
+                } else {
+                    mOpts.image = new kakao.maps.MarkerImage('https://t1.daumcdn.net/mapjsapi/images/marker.png', new kakao.maps.Size(24, 35));
+                }
+                
+                mOpts.zIndex = 3;
                 const marker = new kakao.maps.Marker(mOpts); activeMarkers.push({ marker: marker, handler: null }); clusterer.addMarker(marker); bounds.extend(new kakao.maps.LatLng(displayLat, displayLng)); addedCount++;
             });
             
@@ -996,7 +1048,7 @@
         function copyText() {
             const text = document.getElementById('routeText').value;
             if (!text || text === "항목을 선택하세요." || text === "🏠 거점을 설정해 주세요.") return alert("복사할 경로가 없습니다.");
-            const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert("✨ AI 스케줄링 경로가 클립보드에 복사되었습니다!");
+            const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert("✨ AI 스케줄링 경로가 클립보드 복사되었습니다!");
         }
 
         function copyArchiveDate(dateKey) {
@@ -1006,6 +1058,7 @@
             const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert(`[${dateKey}] 내용이 텍스트로 복사되었습니다!\n(카톡이나 밴드에 붙여넣기 하세요)`);
         }
 
+        // 🌟 메인 대기열 마커 렌더링 업데이트 (씨넷 마커 붉은색 분리 + title 속성)
         function updateMapMarkers() {
             if (!clusterer) return; activeMarkers.forEach(obj => { if (obj.marker) kakao.maps.event.removeListener(obj.marker, 'click', obj.handler); });
             activeMarkers = []; clusterer.clear(); let addrCounts = {}; const offsetBase = 0.00025; 
@@ -1016,8 +1069,23 @@
                     if (!item || !item.lat || !item.lng) return; const key = item.searchAddr || item.addr;
                     if (addrCounts[key] === undefined) addrCounts[key] = 0; let pCount = addrCounts[key]++; let off = offsets[pCount % offsets.length];
                     let displayLat = parseFloat(item.lat) + off[0]; let displayLng = parseFloat(item.lng) + off[1];
-                    const isSelected = selArr.includes(idx); let mOpts = { position: new kakao.maps.LatLng(displayLat, displayLng) };
-                    if (isSelected) { mOpts.image = new kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png', new kakao.maps.Size(24, 35)); mOpts.zIndex = 3; }
+                    const isSelected = selArr.includes(idx); 
+                    
+                    // 마우스 오버 시 접수번호 표시 (title)
+                    let mOpts = { position: new kakao.maps.LatLng(displayLat, displayLng), title: item.asNum };
+                    
+                    if (isSelected) { 
+                        mOpts.image = new kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png', new kakao.maps.Size(24, 35)); mOpts.zIndex = 3; 
+                    } else {
+                        // 선택되지 않았을 때, 씨넷과 일반을 색상으로 구분
+                        if (type === 'cnet') {
+                            mOpts.image = new kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png', new kakao.maps.Size(24, 35));
+                        } else {
+                            // 일반은 카카오 기본 마커 (혹은 특정 푸른색 마커) 사용
+                            mOpts.image = new kakao.maps.MarkerImage('https://t1.daumcdn.net/mapjsapi/images/marker.png', new kakao.maps.Size(24, 35));
+                        }
+                    }
+                    
                     const marker = new kakao.maps.Marker(mOpts); marker.customData_isSelected = isSelected;
                     const clickHandler = () => toggleSelect(type, idx); kakao.maps.event.addListener(marker, 'click', clickHandler);
                     activeMarkers.push({ marker: marker, handler: clickHandler }); clusterer.addMarker(marker);
@@ -1243,13 +1311,11 @@
                                     let cellRaw = String(row[c]||'').trim(); 
                                     let key = cellRaw.replace(/\s/g,''); 
                                     
-                                    // 🌟 핵심 수정 1: 문장이 너무 길면 항목 이름(Key)이 아니라고 판단하여 무시
                                     if (!key || key.length > 20) continue; 
                                     
                                     const getVal = () => { for(let i=c+1; i<row.length; i++) { if (row[i]) return String(row[i]).trim(); } if (rows[r+1] && rows[r+1][c]) return String(rows[r+1][c]).trim(); return ""; }; 
                                     let val = getVal();
                                     
-                                    // 🌟 핵심 수정 2: 이미 찾은 값은 덮어쓰지 않도록 방어 코드(if (!info...)) 추가
                                     if (key.includes('접수번호') || key.includes('AS번호')) { if (!info.asNum) info.asNum = val; }
                                     else if (key.includes('접수일') || key.includes('접수일자')) { 
                                         if (!info.date) {
