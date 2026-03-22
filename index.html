@@ -4,24 +4,29 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Y-Solution Mobile v1.9.3</title>
+    <title>Y-Solution Mobile v1.9.8</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Malgun Gothic', sans-serif; background: #f0f2f5; overflow: hidden; }
         #top-bar { background: #343a40; padding: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1002; position: relative; }
         #globalSearchInput { width: 100%; padding: 8px 15px; font-size: 14px; border: 2px solid #fee500; border-radius: 20px; outline: none; }
+        
         #view-container { flex: 1; height: calc(100vh - 110px); position: relative; overflow-y: auto; background: #f8f9fa; }
-        .view-section { display: none; width: 100%; height: 100%; flex-direction: column; overflow-y: auto; padding: 10px; box-sizing: border-box; }
+        .view-section { display: none; width: 100%; height: 100%; flex-direction: column; padding: 10px; box-sizing: border-box; }
         .view-section.active { display: flex; }
+        
+        /* 🌟 v1.9.8: 안드로이드 하단 메뉴 가림 현상 방지를 위해 스크롤 영역 하단 120px 여백 확보 */
+        .scroll-view { overflow-y: auto; padding-bottom: 120px; }
         #map-view { padding: 0; overflow: hidden; }
         #map { width: 100%; height: 100%; }
+
+        /* 🌟 v1.9.8: 하단 네비게이션 바 고정 */
         #bottom-nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #fff; display: flex; border-top: 1px solid #ddd; z-index: 2000; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
         .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #888; border: none; background: transparent; cursor: pointer; transition: 0.2s; }
         .nav-btn.active { color: #fee500; background: #343a40; }
         .nav-icon { font-size: 20px; margin-bottom: 3px; }
         
-        /* 🌟 일정 탭 내 서브 탭 스타일 */
         .sub-tab-bar { display: flex; gap: 5px; margin-bottom: 12px; background: #e9ecef; padding: 5px; border-radius: 10px; flex-shrink: 0; }
         .sub-tab { flex: 1; padding: 10px 0; border: none; border-radius: 8px; font-size: 12px; font-weight: bold; background: transparent; color: #666; cursor: pointer; transition: 0.2s; }
         .sub-tab.active { background: #fff; color: #111; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -39,31 +44,37 @@
         .info-text { font-size: 11px; color: #666; margin-bottom: 4px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
         .content-box { max-height: 65px; overflow-y: auto; font-size: 11px; color: #444; background: #f8f9fa; padding: 8px; border-radius: 6px; border-left: 3px solid #adb5bd; margin-top: 6px; white-space: pre-wrap; line-height: 1.4; }
         .progress-memo { font-size: 11px; font-weight: bold; color: #856404; margin-top: 6px; background: #fff3cd; padding: 8px; border-radius: 6px; border-left: 3px solid #ffeeba; white-space: pre-wrap; line-height: 1.4; }
-        .archive-date-header { font-size: 14px; font-weight: bold; color: #111; padding: 10px 12px; background: #e9ecef; border-radius: 6px; margin: 15px 0 10px 0; border-left: 4px solid #6c757d; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .mobile-move-btn { padding: 4px 12px; font-size: 12px; font-weight: bold; background: #e9ecef; border: 1px solid #ced4da; border-radius: 4px; color: #495057; cursor: pointer; }
-        .mobile-move-btn:active { background: #ced4da; }
+        
         .action-sheet-bg { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; align-items: flex-end; }
         .action-sheet { background: #fff; width: 100%; border-radius: 15px 15px 0 0; padding: 20px; box-sizing: border-box; animation: slideUp 0.3s ease-out; max-height: 90vh; overflow-y: auto; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .action-btn { width: 100%; padding: 12px; margin-bottom: 8px; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; color: #fff; }
+        .action-btn { width: 100%; padding: 12px; margin-bottom: 8px; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; color: #fff; cursor: pointer; }
+        
         .fab { position: fixed; bottom: 80px; right: 20px; width: 56px; height: 56px; background: #111; color: #fee500; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1500; cursor: pointer; transition: 0.2s; }
         .fab:active { transform: scale(0.95); }
         .fab-menu { display: none; position: fixed; bottom: 145px; right: 25px; flex-direction: column; gap: 10px; z-index: 1499; }
         .fab-item { background: #fff; color: #333; padding: 10px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.2); cursor: pointer; border: 1px solid #eee; text-align: right; }
+        
         .modal-bg { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 4000; justify-content: center; align-items: center; }
         .modal-content { background: #fff; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; max-height: 85vh; overflow-y: auto; display: flex; flex-direction: column; box-sizing: border-box; }
         .local-input, .modal-content select, .modal-content input[type="date"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; margin-bottom: 8px; box-sizing: border-box; }
         .modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 15px; }
         .btn-modal { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; color: white; flex:1; }
+        
         .setting-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .setting-card h4 { margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 2px solid #fee500; padding-bottom: 5px; display: inline-block; }
         .btn-setting { width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 13px; font-weight: bold; color: white; margin-bottom: 6px; cursor: pointer; }
+        
         #loader { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #fee500; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
         .del-alias-btn { color: red; font-weight: bold; padding: 0 5px; cursor: pointer; user-select: none; }
-        .sms-btn { margin-left: auto; padding: 4px 10px; font-size: 11px; background: #20c997; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: 0.1s; }
-        .sms-btn:active { transform: scale(0.95); background: #17a2b8; }
+        .sms-action-wrap { display: flex; gap: 4px; margin-left: auto; }
+        .sms-btn, .tmpl-btn { padding: 4px 10px; font-size: 11px; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: 0.1s; }
+        .sms-btn { background: #20c997; }
+        .tmpl-btn { background: #6f42c1; }
+        .sms-btn:active, .tmpl-btn:active { transform: scale(0.95); opacity: 0.8; }
         .phone-btn { color:#007bff; text-decoration:none; font-weight:bold; padding:3px 8px; border:1px solid #007bff; border-radius:15px; display:inline-block; margin-top:2px; }
     </style>
 </head>
@@ -79,7 +90,7 @@
         </div>
 
         <div id="view-container">
-            <div id="archive-view" class="view-section active">
+            <div id="archive-view" class="view-section scroll-view active">
                 <div class="sub-tab-bar">
                     <button class="sub-tab active" data-tab="D-DAY" onclick="switchArchiveTab('D-DAY', this)">오늘(D)</button>
                     <button class="sub-tab" data-tab="D-1" onclick="switchArchiveTab('D-1', this)">내일(D-1)</button>
@@ -95,23 +106,33 @@
                 <button onclick="copyRoute()" style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); z-index:2000; padding:10px 20px; background:#4a90e2; color:white; border:none; border-radius:20px; font-weight:bold; box-shadow:0 4px 10px rgba(0,0,0,0.3); width:60%;">AI 스케줄링 경로 복사</button>
             </div>
 
-            <div id="gen-view" class="view-section">
+            <div id="gen-view" class="view-section scroll-view">
                 <h3 style="margin:0 0 10px 0; color:#111;">📍 일반 대기열 <span id="genCount" style="float:right; color:#888; font-size:12px;">0건</span></h3>
                 <div id="listGen"></div>
             </div>
 
-            <div id="cnet-view" class="view-section">
+            <div id="cnet-view" class="view-section scroll-view">
                 <h3 style="margin:0 0 10px 0; color:#ff4757;">📍 씨넷 대기열 <span id="cnetCount" style="float:right; color:#888; font-size:12px;">0건</span></h3>
                 <div id="listCnet"></div>
             </div>
 
-            <div id="settings-view" class="view-section">
+            <div id="settings-view" class="view-section scroll-view">
                 <h3 style="margin:0 0 15px 0; color:#111;">⚙️ 관제센터 도구 및 설정</h3>
                 
                 <div class="setting-card">
-                    <h4>🅿️ 고정 문자 템플릿 (주차등록 등)</h4>
-                    <p style="font-size:11px; color:#666; margin-top:-5px; margin-bottom:8px;">일정 탭에서 버튼을 누르면 아래 내용으로 문자가 자동 완성됩니다.</p>
-                    <textarea id="smsTemplateInput" class="local-input" style="height:60px; resize:none; border-color:#20c997;" oninput="saveSmsTemplate()" placeholder="예) 차량번호 12가3456 / 방문목적: AS수리 주차등록 부탁드립니다."></textarea>
+                    <h4>💬 자동 문자 템플릿 설정</h4>
+                    <p style="font-size:11px; color:#666; margin-top:-5px; margin-bottom:8px;">각 버튼 터치 시 아래의 양식이 자동으로 문자에 입력됩니다.</p>
+                    <label style="font-size:11px; font-weight:bold; color:#20c997;">🅿️ 주차등록 양식</label>
+                    <textarea id="tmplParking" class="local-input" style="height:40px; resize:none; border-color:#20c997; margin-bottom:10px;" oninput="saveTemplates()" placeholder="주차등록 요청 내용"></textarea>
+                    
+                    <label style="font-size:11px; font-weight:bold; color:#6f42c1;">📌 고정 양식</label>
+                    <textarea id="tmplFixed" class="local-input" style="height:40px; resize:none; border-color:#6f42c1; margin-bottom:10px;" oninput="saveTemplates()" placeholder="자주 쓰는 고정 방문 멘트"></textarea>
+                    
+                    <label style="font-size:11px; font-weight:bold; color:#0056b3;">📋 일반 양식</label>
+                    <textarea id="tmplGen" class="local-input" style="height:40px; resize:none; border-color:#0056b3; margin-bottom:10px;" oninput="saveTemplates()" placeholder="일반 건 안내 멘트"></textarea>
+                    
+                    <label style="font-size:11px; font-weight:bold; color:#d63031;">🌑 씨넷 양식</label>
+                    <textarea id="tmplCnet" class="local-input" style="height:40px; resize:none; border-color:#d63031; margin-bottom:5px;" oninput="saveTemplates()" placeholder="씨넷 전용 자재/방문 안내 멘트"></textarea>
                 </div>
 
                 <div class="setting-card">
@@ -152,7 +173,7 @@
 
         <div id="bottom-nav">
             <button class="nav-btn active" onclick="switchTab('archive-view', this)"><span class="nav-icon">📦</span>일정</button>
-            <button class="nav-btn" onclick="switchTab('map-view', this)"><span class="nav-icon">📍</span>지도맵</button>
+            <button class="nav-btn" onclick="switchTab('map-view', this)"><span class="nav-icon">📍</span>지도앱</button>
             <button class="nav-btn" onclick="switchTab('gen-view', this)"><span class="nav-icon">📋</span>일반</button>
             <button class="nav-btn" onclick="switchTab('cnet-view', this)"><span class="nav-icon">🌑</span>씨넷</button>
             <button class="nav-btn" onclick="switchTab('settings-view', this)"><span class="nav-icon">⚙️</span>설정</button>
@@ -176,8 +197,28 @@
             <button class="action-btn" style="background:#17a2b8;" onclick="editItem()">✏️ 접수 내용 수정하기</button>
             <button class="action-btn" style="background:#28a745;" onclick="moveItem('today')">🎯 D-Day (오늘 일정으로)</button>
             <button class="action-btn" style="background:#007bff;" onclick="moveItem('tomorrow')">🚀 D-1 (내일 일정으로)</button>
-            <button class="action-btn" style="background:#6c757d;" onclick="completeItemWithMemo()">✅ 작업 완료 처리 (+메모)</button>
+            
+            <button class="action-btn" style="background:#6c757d;" onclick="appendCompleteText()">✅ 작업완료 텍스트 추가</button>
+            
             <button class="action-btn" style="background:#dc3545;" onclick="deleteItem()">🗑️ 영구 삭제</button>
+        </div>
+    </div>
+
+    <div id="phoneSelectSheet" class="action-sheet-bg" onclick="closePhoneSelectSheet(event)">
+        <div class="action-sheet" onclick="event.stopPropagation()">
+            <h4 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; font-size:16px; color:#d63031;">📱 수신 번호 선택</h4>
+            <p style="font-size:11px; color:#666; margin-top:-5px; margin-bottom:15px;">문자를 전송할 번호를 선택해주세요.</p>
+            <div id="phoneBtnContainer"></div>
+        </div>
+    </div>
+
+    <div id="tmplSelectSheet" class="action-sheet-bg" onclick="closeTmplSelectSheet(event)">
+        <div class="action-sheet" onclick="event.stopPropagation()">
+            <h4 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; font-size:16px; color:#6f42c1;">💬 템플릿 선택</h4>
+            <p id="tmplTargetPhone" style="font-size:12px; font-weight:bold; color:#0056b3; margin-top:-5px; margin-bottom:15px;"></p>
+            <button class="action-btn" style="background:#6f42c1;" onclick="executeTemplateSms('fixed')">📌 고정 양식 전송</button>
+            <button class="action-btn" style="background:#0056b3;" onclick="executeTemplateSms('general')">📋 일반 양식 전송</button>
+            <button class="action-btn" style="background:#d63031;" onclick="executeTemplateSms('cnet')">🌑 씨넷 양식 전송</button>
         </div>
     </div>
 
@@ -218,7 +259,7 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec";
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.9.3' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.9.8' };
 
         const StorageManager = {
             getKey: (key) => APP_CONFIG.PREFIX + key,
@@ -233,8 +274,7 @@
                     localStorage.setItem(StorageManager.getKey(key), JSON.stringify(val));
                 } catch (e) {
                     if (e.name === 'QuotaExceededError') {
-                        console.warn('[Storage] 용량 초과:', key);
-                        alert('⚠️ 저장 공간이 부족합니다. 오래된 데이터를 백업 후 정리해주세요.');
+                        alert('⚠️ 저장 공간이 부족합니다. 오래된 데이터를 정리해주세요.');
                     }
                 }
             }
@@ -246,13 +286,22 @@
         let addressAlias   = StorageManager.get('AddressAlias', { "동탄 아테라파밀리에": "경기도 화성시 신동 561-1" });
         let fixedStartAddr = StorageManager.get('FixedAddr', "한신대 133번길 12-1");
         let dailyMemos     = StorageManager.get('DailyMemos', {});
-        let smsTemplate    = StorageManager.get('SmsTemplate', "방문목적: A/S 방문수리\n차량번호: \n주차등록 부탁드립니다.");
+        
+        // 🌟 다중 템플릿 로컬 스토리지 변수
+        let tmplParking    = StorageManager.get('TmplParking', "방문목적: A/S 방문수리\n차량번호: \n주차등록 부탁드립니다.");
+        let tmplFixed      = StorageManager.get('TmplFixed', "안녕하세요, 기사입니다. 일정 관련 안내드립니다.");
+        let tmplGen        = StorageManager.get('TmplGen', "일반 AS 접수건 방문 예정입니다.");
+        let tmplCnet       = StorageManager.get('TmplCnet', "씨넷 하자 접수건 자재 확인 후 연락드리겠습니다.");
 
         let currentArchiveTab = 'D-DAY'; 
-        let map, clusterer, geocoder;
+        let map, clusterer, geocoder, fixedMarker = null;
         let activeMarkers   = [];
         let currentEditIdx = -1;
         let cloudSaveTimer = null;
+        
+        // SMS 발송 임시 상태 저장
+        let tempSmsMode = '';
+        let tempTargetPhone = '';
 
         function escapeHTML(str) {
             return str ? String(str)
@@ -271,7 +320,10 @@
             StorageManager.set('AddressAlias', addressAlias);
             StorageManager.set('FixedAddr', fixedStartAddr);
             StorageManager.set('DailyMemos', dailyMemos);
-            StorageManager.set('SmsTemplate', smsTemplate);
+            StorageManager.set('TmplParking', tmplParking);
+            StorageManager.set('TmplFixed', tmplFixed);
+            StorageManager.set('TmplGen', tmplGen);
+            StorageManager.set('TmplCnet', tmplCnet);
             
             clearTimeout(cloudSaveTimer);
             cloudSaveTimer = setTimeout(() => saveToCloud(false), 4000);
@@ -288,7 +340,14 @@
                 if (json.AddressAlias)  addressAlias   = json.AddressAlias;
                 if (json.FixedAddr)     fixedStartAddr = json.FixedAddr;
                 if (json.DailyMemos)    dailyMemos     = json.DailyMemos;
-                if (json.SmsTemplate !== undefined) smsTemplate = json.SmsTemplate;
+                
+                // 기존 SmsTemplate 변환 호환성
+                if (json.TmplParking) tmplParking = json.TmplParking;
+                else if (json.SmsTemplate) tmplParking = json.SmsTemplate;
+                
+                if (json.TmplFixed) tmplFixed = json.TmplFixed;
+                if (json.TmplGen) tmplGen = json.TmplGen;
+                if (json.TmplCnet) tmplCnet = json.TmplCnet;
                 
                 save(); renderViews(); initMap(); renderSettings();
             } catch(e) {
@@ -300,7 +359,7 @@
 
         async function saveToCloud(isManual = false) {
             if (isManual) showLoader();
-            let payload = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos, SmsTemplate: smsTemplate };
+            let payload = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos, TmplParking: tmplParking, TmplFixed: tmplFixed, TmplGen: tmplGen, TmplCnet: tmplCnet };
             try {
                 await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify(payload) });
                 if (isManual) alert("☁️ 수동 클라우드 동기화 완료!");
@@ -316,7 +375,6 @@
             btnEl.classList.add('active');
             
             const fab = document.getElementById('fabBtn');
-            // 모바일에서 입력/추가 버튼은 일반, 씨넷, 일정 탭에서만 활성화
             if (viewId === 'gen-view' || viewId === 'cnet-view' || viewId === 'archive-view') { 
                 fab.style.display = 'flex'; 
             } else { 
@@ -344,7 +402,6 @@
             
             const titleMap = { 'D-DAY': '📅 오늘 일정', 'D-1': '🚀 내일 일정(D-1)', 'D-2': '📅 모레 일정(D-2)', 'DONE': '📦 전체/완료 보드' };
             document.getElementById('archiveTitle').innerText = titleMap[tabName];
-            
             renderArchive();
         }
 
@@ -385,23 +442,10 @@
             document.addEventListener('visibilitychange', handleVisibility);
         }
 
-        function sendParkingSms(tel, event) {
-            if(event) event.stopPropagation();
-            if(!tel) return alert("유효한 전화번호가 없습니다.");
-            // 첫번째 번호로 주차 문자 발송
-            let firstTel = String(tel).split(/[/,]/)[0];
-            let cleanNumber = firstTel.replace(/[^0-9]/g, '');
-            if(!smsTemplate) return alert("설정 탭에서 고정 메세지 템플릿을 먼저 작성해주세요.");
-            let encodedMsg = encodeURIComponent(smsTemplate);
-            let separator = /iPad|iPhone|iPod/.test(navigator.userAgent) ? '&' : '?';
-            window.location.href = `sms:${cleanNumber}${separator}body=${encodedMsg}`;
-        }
-
-        // 🌟 v1.9.3: 전화번호 다중 인식 및 분할 처리 로직
+        // 🌟 전화번호 듀얼 터치 링크 분리 렌더링
         function generatePhoneLinks(telString) {
             if (!telString) return '📞 없음';
             let html = '';
-            // 슬래시나 쉼표를 기준으로 전화번호 분할
             let phones = String(telString).split(/[/,]/);
             phones.forEach(p => {
                 let cleanP = p.trim();
@@ -410,6 +454,72 @@
                 }
             });
             return html;
+        }
+
+        // 🌟 스마트 다중 문자 발송 모듈
+        function triggerSmsFlow(type, idx, mode, event) {
+            if (event) event.stopPropagation();
+            let dataArr = type === 'general' ? savedData : type === 'cnet' ? cnetData : archiveData;
+            let item = dataArr[idx];
+            if (!item || !item.tel) return alert("유효한 전화번호가 없습니다.");
+            
+            let phones = String(item.tel).split(/[/,]/).map(p => p.trim()).filter(p => p.length > 5);
+            if (phones.length === 0) return alert("발송 가능한 번호가 없습니다.");
+            
+            tempSmsMode = mode;
+            
+            if (phones.length === 1) {
+                // 번호가 하나면 바로 처리
+                executeSmsAction(phones[0]);
+            } else {
+                // 번호가 여러 개면 선택 시트 띄우기
+                let container = document.getElementById('phoneBtnContainer');
+                container.innerHTML = '';
+                phones.forEach((p, i) => {
+                    let btn = document.createElement('button');
+                    btn.className = 'action-btn';
+                    btn.style.background = '#343a40';
+                    btn.innerText = `📞 ${p} (번호 ${i+1})`;
+                    btn.onclick = function(e) {
+                        e.stopPropagation();
+                        executeSmsAction(p);
+                    };
+                    container.appendChild(btn);
+                });
+                document.getElementById('phoneSelectSheet').style.display = 'flex';
+            }
+        }
+        
+        function closePhoneSelectSheet(e) { document.getElementById('phoneSelectSheet').style.display = 'none'; }
+        function closeTmplSelectSheet(e) { document.getElementById('tmplSelectSheet').style.display = 'none'; }
+
+        function executeSmsAction(targetPhone) {
+            closePhoneSelectSheet();
+            let cleanNumber = targetPhone.replace(/[^0-9]/g, '');
+            
+            if (tempSmsMode === 'parking') {
+                if(!tmplParking) return alert("설정 탭에서 주차등록 템플릿을 입력하세요.");
+                let encodedMsg = encodeURIComponent(tmplParking);
+                let separator = /iPad|iPhone|iPod/.test(navigator.userAgent) ? '&' : '?';
+                window.location.href = `sms:${cleanNumber}${separator}body=${encodedMsg}`;
+            } else if (tempSmsMode === 'template') {
+                tempTargetPhone = cleanNumber;
+                document.getElementById('tmplTargetPhone').innerText = `대상: ${targetPhone}`;
+                document.getElementById('tmplSelectSheet').style.display = 'flex';
+            }
+        }
+        
+        function executeTemplateSms(tmplType) {
+            closeTmplSelectSheet();
+            let msg = '';
+            if (tmplType === 'fixed') msg = tmplFixed;
+            else if (tmplType === 'general') msg = tmplGen;
+            else if (tmplType === 'cnet') msg = tmplCnet;
+            
+            if(!msg) return alert("해당 양식이 비어있습니다. 설정 탭에서 내용을 입력하세요.");
+            let encodedMsg = encodeURIComponent(msg);
+            let separator = /iPad|iPhone|iPod/.test(navigator.userAgent) ? '&' : '?';
+            window.location.href = `sms:${tempTargetPhone}${separator}body=${encodedMsg}`;
         }
 
         function renderViews() {
@@ -428,10 +538,16 @@
                     
                     let phoneHtml = generatePhoneLinks(item.tel);
                     
+                    // 문자 버튼 추가
+                    let actionBtns = item.tel ? `
+                        <div class="sms-action-wrap">
+                            <button class="sms-btn" onclick="triggerSmsFlow('${type}', ${idx}, 'parking', event)">🅿️ 주차등록</button>
+                            <button class="tmpl-btn" onclick="triggerSmsFlow('${type}', ${idx}, 'template', event)">💬 고정문자</button>
+                        </div>` : '';
+                    
                     let contentHtml = `<div class="content-box">📄 증상: ${escapeHTML(item.content || '내용 없음')}</div>`;
                     let memoHtml    = item.memo ? `<div class="progress-memo">💡 [진행 메모] ${escapeHTML(item.memo)}</div>` : '';
                     let pinWarning  = !item.lat ? `<span style="background:#dc3545; color:white; font-size:10px; padding:2px 4px; border-radius:4px; margin-left:4px;">⚠️핀누락</span>` : '';
-                    
                     let costBadge = item.costType ? `<span style="font-weight:bold; color:${item.costType.includes('무상') ? '#28a745' : '#dc3545'};">[${escapeHTML(item.costType)}]</span> ` : '';
                     
                     let dDayHtml = '';
@@ -447,7 +563,10 @@
                         <div class="list-item ${cssClass}" data-idx="${idx}" data-type="${type}" data-asnum="${escapeHTML(item.asNum)}">
                             <span class="as-num">${type==='cnet'?'[씨넷]':'[일반]'} ${escapeHTML(item.asNum)} ${pinWarning} ${dDayHtml}</span>
                             <span class="addr-text tmap-link" data-idx="${idx}" data-type="${type}" style="color:#0056b3; cursor:pointer;">🧭 ${escapeHTML(item.addr)} <span style="font-size:10px; font-weight:normal; text-decoration:underline; color:#666;">(티맵)</span></span>
-                            <div class="info-text">👤 ${escapeHTML(item.name)}</div>
+                            <div class="info-text" style="justify-content:space-between;">
+                                <span>👤 ${escapeHTML(item.name)}</span>
+                                ${actionBtns}
+                            </div>
                             <div class="info-text">${phoneHtml}</div>
                             <div class="info-text" style="color:#444; margin-top:4px;">${costBadge}🏷️ ${escapeHTML(item.modelName)}</div>
                             ${contentHtml}${memoHtml}
@@ -469,7 +588,7 @@
         function handleListClick(e) {
             const tmapEl = e.target.closest('.tmap-link');
             if (tmapEl) { e.stopPropagation(); openTmap(tmapEl.dataset.type, parseInt(tmapEl.dataset.idx), e); return; }
-            if (e.target.tagName === 'A') return;
+            if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
             const card = e.target.closest('.list-item[data-idx]');
             if (card) openActionSheet(card.dataset.type, parseInt(card.dataset.idx), card.dataset.asnum);
         }
@@ -506,18 +625,25 @@
                     let item = obj.item;
                     let phoneHtml = generatePhoneLinks(item.tel);
                     
-                    let smsBtn = item.tel ? `<button class="sms-btn" onclick="sendParkingSms('${escapeHTML(item.tel)}', event)">🅿️ 주차등록</button>` : '';
+                    let actionBtns = item.tel ? `
+                        <div class="sms-action-wrap">
+                            <button class="sms-btn" onclick="triggerSmsFlow('archive', ${obj.idx}, 'parking', event)">🅿️ 주차등록</button>
+                            <button class="tmpl-btn" onclick="triggerSmsFlow('archive', ${obj.idx}, 'template', event)">💬 고정문자</button>
+                        </div>` : '';
+                    
                     let contentHtml = `<div class="content-box">📄 증상: ${escapeHTML(item.content || '내용 없음')}</div>`;
                     let memoHtml    = item.archiveMemo ? `<div class="progress-memo" style="border-left-color:#ff4757; background:#fff0f0; color:#d63031;">📝 [메모] ${escapeHTML(item.archiveMemo)}</div>` : '';
                     let srcTag = item.source === 'cnet' ? '<span style="color:#ff4757;">[씨넷]</span>' : '<span style="color:#0056b3;">[일반]</span>';
-                    
                     let costBadge = item.costType ? `<span style="font-weight:bold; color:${item.costType.includes('무상') ? '#28a745' : '#dc3545'};">[${escapeHTML(item.costType)}]</span> ` : '';
                     
                     html += `
                         <div class="list-item archive" data-idx="${obj.idx}" data-type="archive" data-asnum="${escapeHTML(item.asNum)}">
                             <span class="as-num">${srcTag} ${escapeHTML(item.asNum)} <span style="float:right; color:#999; font-size:10px;">${escapeHTML(item.completedDate)}</span></span>
                             <span class="addr-text tmap-link" data-idx="${obj.idx}" data-type="archive" style="color:#0056b3; cursor:pointer;">🧭 ${escapeHTML(item.addr)}</span>
-                            <div class="info-text">👤 ${escapeHTML(item.name)} ${smsBtn}</div>
+                            <div class="info-text" style="justify-content:space-between;">
+                                <span>👤 ${escapeHTML(item.name)}</span>
+                                ${actionBtns}
+                            </div>
                             <div class="info-text">${phoneHtml}</div>
                             <div class="info-text" style="color:#444; margin-top:4px;">${costBadge}🏷️ ${escapeHTML(item.modelName)}</div>
                             ${contentHtml}${memoHtml}
@@ -530,10 +656,9 @@
         }
 
         document.getElementById('listArchive').addEventListener('click', function(e) {
-            if (e.target.closest('.sms-btn')) return;
             const tmapEl = e.target.closest('.tmap-link');
             if (tmapEl) { e.stopPropagation(); openTmap(tmapEl.dataset.type, parseInt(tmapEl.dataset.idx), e); return; }
-            if (e.target.tagName === 'A') return;
+            if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
             const card = e.target.closest('.list-item[data-idx]');
             if (card) openActionSheet(card.dataset.type, parseInt(card.dataset.idx), card.dataset.asnum);
         });
@@ -568,18 +693,21 @@
             closeActionSheet(); openManualModal(type, idx);
         }
 
-        function completeItemWithMemo() {
+        // 🌟 v1.9.8: 완료 텍스트 단순 덧붙이기 로직 (No Splice)
+        function appendCompleteText() {
             let type = document.getElementById('actionType').value;
             let idx  = parseInt(document.getElementById('actionIdx').value);
             let dataArr = type === 'general' ? savedData : type === 'cnet' ? cnetData : archiveData;
-            let item = dataArr.splice(idx, 1)[0];
-            let memo = prompt("✅ 작업 완료 메모를 입력하세요 (일정 탭으로 이동됩니다):", item.memo || '');
-            if (memo === null) { dataArr.splice(idx, 0, item); return; }
-            let targetDate = new Date(), offset = targetDate.getTimezoneOffset() * 60000;
-            item.completedDate = new Date(targetDate.getTime() - offset).toISOString().split('T')[0];
-            item.source = type; item.archiveMemo = memo;
-            archiveData.push(item); closeActionSheet(); save(); renderViews();
-            updateMapMarkers();
+            let item = dataArr[idx];
+            
+            if (type === 'archive') {
+                item.archiveMemo = item.archiveMemo ? item.archiveMemo + " 작업완료" : "작업완료";
+            } else {
+                item.memo = item.memo ? item.memo + " 작업완료" : "작업완료";
+            }
+            closeActionSheet(); 
+            save(); 
+            renderViews();
         }
 
         function moveItem(dayType) {
@@ -633,7 +761,7 @@
             let addr = document.getElementById('mAddr').value.trim();
             if (!addr) return alert("주소는 필수 입력 사항입니다.");
             let telRaw = document.getElementById('mTel').value.trim();
-            let telFormat = telRaw.replace(/[^0-9/]/g,''); // 숫자와 슬래시만 남기기
+            let telFormat = telRaw.replace(/[^0-9/]/g,''); 
             if(telFormat.length === 11 && !telFormat.includes('/')) {
                 telFormat = telFormat.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
             }
@@ -720,11 +848,23 @@
             document.getElementById('memoDateStr').innerText = `(${todayStr})`;
             document.getElementById('memoToday').value = dailyMemos[todayStr] || "";
             document.getElementById('fixedAddrInput').value = fixedStartAddr || "";
-            document.getElementById('smsTemplateInput').value = smsTemplate || "";
+            
+            document.getElementById('tmplParking').value = tmplParking || "";
+            document.getElementById('tmplFixed').value = tmplFixed || "";
+            document.getElementById('tmplGen').value = tmplGen || "";
+            document.getElementById('tmplCnet').value = tmplCnet || "";
+            
             renderAliasList();
         }
 
-        function saveSmsTemplate() { smsTemplate = document.getElementById('smsTemplateInput').value; save(); }
+        function saveTemplates() {
+            tmplParking = document.getElementById('tmplParking').value;
+            tmplFixed = document.getElementById('tmplFixed').value;
+            tmplGen = document.getElementById('tmplGen').value;
+            tmplCnet = document.getElementById('tmplCnet').value;
+            save();
+        }
+
         function saveMemoToday() {
             let today = new Date(), offset = today.getTimezoneOffset() * 60000;
             let todayStr = new Date(today.getTime() - offset).toISOString().split('T')[0];
@@ -795,14 +935,14 @@
             const fmtData = (arr) => arr.map(i => ({ '접수번호':i.asNum,'주소':i.addr,'고객명':i.name,'연락처':i.tel,'모델명':i.modelName,'비용구분':i.costType,'증상':i.content,'메모':i.memo||'' }));
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fmtData(savedData)), "일반");
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fmtData(cnetData)), "씨넷");
-            XLSX.writeFile(wb, `YSOL_v1.9.3_Backup.xlsx`);
+            XLSX.writeFile(wb, `YSOL_v1.9.8_Backup.xlsx`);
         }
 
         function backupData() {
-            const data = { Todo:savedData, CnetTodo:cnetData, Archive:archiveData, AddressAlias:addressAlias, FixedAddr:fixedStartAddr, DailyMemos:dailyMemos, SmsTemplate:smsTemplate };
+            const data = { Todo:savedData, CnetTodo:cnetData, Archive:archiveData, AddressAlias:addressAlias, FixedAddr:fixedStartAddr, DailyMemos:dailyMemos, TmplParking:tmplParking, TmplFixed:tmplFixed, TmplGen:tmplGen, TmplCnet:tmplCnet };
             const blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href=url; a.download=`YSOL_v1.9.3_Backup.json`; a.click();
+            const a = document.createElement('a'); a.href=url; a.download=`YSOL_v1.9.8_Backup.json`; a.click();
         }
 
         function restoreData(event) {
@@ -814,7 +954,10 @@
                     if (parsed.Todo) savedData = parsed.Todo;
                     if (parsed.CnetTodo) cnetData = parsed.CnetTodo;
                     if (parsed.Archive) archiveData = parsed.Archive;
-                    if (parsed.SmsTemplate) smsTemplate = parsed.SmsTemplate;
+                    if (parsed.TmplParking) tmplParking = parsed.TmplParking;
+                    if (parsed.TmplFixed) tmplFixed = parsed.TmplFixed;
+                    if (parsed.TmplGen) tmplGen = parsed.TmplGen;
+                    if (parsed.TmplCnet) tmplCnet = parsed.TmplCnet;
                     save(); renderViews(); alert("복구 완료!");
                 } catch(err) { alert("오류"); }
             };
@@ -827,7 +970,6 @@
                 clusterer = new kakao.maps.MarkerClusterer({ map, averageCenter: true, minLevel: 5 });
                 geocoder = new kakao.maps.services.Geocoder();
                 
-                // 🌟 고정 거점 표시 호출 추가
                 if(fixedStartAddr) drawFixedAddr(fixedStartAddr);
                 updateMapMarkers();
             });
@@ -850,7 +992,6 @@
             });
         }
 
-        // 🌟 v1.9.3: 모바일용 지도 마커 시각적 구분 및 클릭 액션 이벤트 통합
         function updateMapMarkers() {
             if (!clusterer) return;
             activeMarkers.forEach(obj => { if (obj.marker) obj.marker.setMap(null); });
@@ -880,7 +1021,6 @@
             processMarkers(savedData, 'general');
             processMarkers(cnetData, 'cnet');
             
-            // 오늘 날짜의 완료 건(일정)도 지도에 표시
             let todayObj = new Date(); let offset = todayObj.getTimezoneOffset() * 60000;
             let todayStr = new Date(todayObj.getTime() - offset).toISOString().split('T')[0];
             archiveData.forEach((item, idx) => {
