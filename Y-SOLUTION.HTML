@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>Y-Solution v1.8.34 (Smart Cost Parser & Pending List)</title>
+    <title>Y-Solution v1.8.35 (Smart Cost Parser & Pending List)</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -313,10 +313,13 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec";
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.34' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.8.35' };
 
         let isDragging = false;
         let isTyping = false; 
+
+        // 🌟 양방향 추적 하이라이트를 위한 InfoWindow 전역 변수
+        var trackingInfoWindow = null;
 
         const StorageManager = {
             getKey: (key) => APP_CONFIG.PREFIX + key,
@@ -333,6 +336,37 @@
 
         function escapeHTML(str) {
             return str ? String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;') : '';
+        }
+
+        // 아이디 생성 시 띄어쓰기 등 특수문자 제거 방어코드
+        function getSafeId(asNum) { return 'item_' + String(asNum || 'none').replace(/[^a-zA-Z0-9_-]/g, '_'); }
+
+        // 🌟 1. 지도 클릭 시 -> 하단 리스트 스크롤 이동 및 강조 (하이라이트)
+        function focusOnList(asNum) {
+            let el = document.getElementById(getSafeId(asNum));
+            if(el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                let originalBg = el.style.backgroundColor || '#fff';
+                el.style.transition = 'background-color 0.2s';
+                el.style.backgroundColor = '#ffeaa7'; // 2초간 노란색 깜빡임
+                setTimeout(() => { 
+                    el.style.backgroundColor = originalBg; 
+                    setTimeout(() => { el.style.transition = ''; }, 300);
+                }, 2000);
+            }
+        }
+
+        // 🌟 2. 리스트 클릭 시 -> 지도 중심 이동 및 말풍선 띄우기
+        function focusOnMap(asNum, lat, lng) {
+            if(!map || !lat || !lng) return;
+            let pos = new kakao.maps.LatLng(lat, lng);
+            map.panTo(pos);
+            if(trackingInfoWindow) {
+                trackingInfoWindow.setContent('<div style="padding:5px 10px; font-size:12px; font-weight:bold; color:#d63031; text-align:center; white-space:nowrap;">📍 ' + escapeHTML(asNum) + '<br>여기입니다!</div>');
+                trackingInfoWindow.setPosition(pos);
+                trackingInfoWindow.setMap(map);
+                setTimeout(() => { trackingInfoWindow.setMap(null); }, 2500); // 2.5초 후 말풍선 닫기
+            }
         }
 
         var defaultAlias = { "동탄 아테라파밀리에": "경기도 화성시 신동 561-1" };
@@ -646,6 +680,9 @@
                 geocoder = new kakao.maps.services.Geocoder();
                 clusterer = new kakao.maps.MarkerClusterer({ map: map, averageCenter: true, minLevel: 5 });
                 
+                // 전역 말풍선 생성
+                trackingInfoWindow = new kakao.maps.InfoWindow({ zIndex: 100, removable: false });
+                
                 kakao.maps.event.addListener(clusterer, 'clustered', function(clusters) {
                     clusters.forEach(function(cluster) {
                         var markers = cluster.getMarkers(); var selCount = markers.filter(m => m.customData_isSelected).length; var total = markers.length;
@@ -662,12 +699,21 @@
 
         function initFixedMarker() { if (fixedStartAddr) { document.getElementById('fixedAddrInput').value = fixedStartAddr; drawFixedAddr(fixedStartAddr); } }
         function changeFixedAddr() { let newAddr = document.getElementById('fixedAddrInput').value.trim(); if (!newAddr) return; fixedStartAddr = newAddr; StorageManager.set('FixedAddr', fixedStartAddr); drawFixedAddr(fixedStartAddr); updateSummary(); save(); }
+        
+        // 🌟 3. 고정 거점(출발지) 핀 디자인 완전 교체 로직
         function drawFixedAddr(addr) {
             geocoder.addressSearch(addr, (res, stat) => {
                 if (stat === 'OK') {
                     if (fixedMarker) fixedMarker.setMap(null); 
-                    var imageSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png', imageSize = new kakao.maps.Size(31, 35), imageOption = {offset: new kakao.maps.Point(15, 35)};
-                    fixedMarker = new kakao.maps.Marker({ position: new kakao.maps.LatLng(res[0].y, res[0].x), image: new kakao.maps.MarkerImage(imageSrc, imageSize, imageOption), map: map });
+                    
+                    var content = '<div style="background:#343a40; color:#fee500; padding:6px 12px; border-radius:20px; font-weight:bold; font-size:13px; box-shadow:0 3px 6px rgba(0,0,0,0.4); border:2px solid #fee500; position:relative; top:-20px; white-space:nowrap;">🏠 거점(출발/도착)</div>';
+                    fixedMarker = new kakao.maps.CustomOverlay({
+                        position: new kakao.maps.LatLng(res[0].y, res[0].x),
+                        content: content,
+                        map: map,
+                        zIndex: 10
+                    });
+                    
                     map.setCenter(new kakao.maps.LatLng(res[0].y, res[0].x));
                 }
             });
@@ -748,8 +794,17 @@
 
                 const div = document.createElement('div');
                 div.className = 'list-item' + (isSelected ? (isGen ? ' selected-gen' : ' selected-cnet') : '') + (isSearched ? ' searched' : '');
+                
+                // 🌟 리스트 아이템에 양방향 추적용 id 부여
+                div.id = getSafeId(item.asNum);
                 div.dataset.idx = idx; 
-                div.onclick = () => { if (window.getSelection().toString().length > 0) return; toggleSelect(type, idx); };
+                
+                // 🌟 클릭 시: 지도 카메라 이동 및 말풍선 트리거 (동시에 선택/해제 로직도 수행)
+                div.onclick = (e) => { 
+                    if (window.getSelection().toString().length > 0) return; 
+                    toggleSelect(type, idx); 
+                    focusOnMap(item.asNum, item.lat, item.lng);
+                };
 
                 let diffText = getRealTimeDiff(item);
                 let costBadge = item.costType === '유상' ? `<span style="background:#ff5252; color:white; font-size:9px; padding:1px 4px; border-radius:3px; margin-left:4px;">유상</span>` : item.costType === '무상' ? `<span style="background:#28a745; color:white; font-size:9px; padding:1px 4px; border-radius:3px; margin-left:4px;">무상</span>` : '';
@@ -794,10 +849,9 @@
             listEl.appendChild(fragment);
         }
 
-        // 🌟 업데이트 로직: 숫자 입력 후 바탕화면 클릭 시 즉시 변경 (onchange 기반)
         window.changeArchiveOrder = function(dateKey, originalIdx, inputElem) {
             let targetRank = parseInt(inputElem.value, 10);
-            inputElem.value = ''; // 항상 입력창 비우기 (뱃지로 대체 확인)
+            inputElem.value = ''; 
             
             if (isNaN(targetRank) || targetRank < 1) return;
 
@@ -812,7 +866,6 @@
             let visualArr = items.slice().reverse();
 
             let currentVisualIdx = visualArr.findIndex(item => item === archiveData[originalIdx]);
-            // 방어 코드: 이미 원하는 순서에 있다면 무시
             if (currentVisualIdx === -1 || currentVisualIdx === targetRank - 1) return;
 
             let [movedItem] = visualArr.splice(currentVisualIdx, 1); 
@@ -926,7 +979,16 @@
                 arcGroups[dateKey].slice().reverse().forEach((obj, visualIndex) => {
                     const d = document.createElement('div'); d.className = 'archive-item';
                     
-                    let currentRank = visualIndex + 1; // 🌟 현재 1~N위 랭크 계산
+                    let currentRank = visualIndex + 1; 
+                    
+                    // 🌟 보관함 항목에 양방향 추적용 id 부여
+                    d.id = getSafeId(obj.item.asNum);
+                    
+                    // 🌟 클릭 시: 지도 카메라 이동 및 말풍선 트리거
+                    d.onclick = (e) => { 
+                        if (window.getSelection().toString().length > 0) return; 
+                        focusOnMap(obj.item.asNum, obj.item.lat, obj.item.lng);
+                    };
                     
                     d.ondragstart = function(e) { 
                         isDragging = true; 
@@ -972,10 +1034,10 @@
                     let pinWarning = !obj.item.lat ? `<span class="warning-badge" title="현장명 사전에 주소 일부분을 추가하세요">⚠️ 핀 누락</span>` : '';
                     const srcTag = obj.item.source === 'cnet' ? '<span style="color:#ff4757;">[씨넷]</span>' : '<span style="color:#4a90e2;">[일반]</span>';
 
-                    // 🌟 UI 업데이트: order-badge 추가 및 onchange 기반 트리거 적용
+                    // 버튼이나 입력창 누를 때는 지도 이동 방지 (stopPropagation 추가)
                     d.innerHTML = `
                         <div class="as-num-label ${obj.item.source === 'cnet' ? 'cnet' : ''}">
-                            <span class="drag-handle" onmousedown="window.enableDrag(this)" onmouseup="window.disableDrag(this)" onmouseleave="window.disableDrag(this)">⣿</span>
+                            <span class="drag-handle" onmousedown="window.enableDrag(this)" onmouseup="window.disableDrag(this)" onmouseleave="window.disableDrag(this)" onclick="event.stopPropagation()">⣿</span>
                             <span class="order-badge" style="background:#6c757d; margin-right: 6px;" title="현재 순번">${currentRank}</span>
                             ${srcTag} ${escapeHTML(obj.item.asNum)} ${costBadge} ${pinWarning}
                             <span style="font-size:9px; color:#ff5252; float:right; margin-top:2px;">D+${diffText}</span>
@@ -984,13 +1046,13 @@
                         <div style="font-size:10px; color:#555; margin-top:1px;">👤 ${escapeHTML(obj.item.name||'미상')} | 📞 ${escapeHTML(obj.item.tel||'없음')} | 🏷️ ${escapeHTML(obj.item.modelName||'없음')}</div>
                         <div class="content-box">📄 ${escapeHTML(obj.item.content||'내용 없음')}</div>
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
-                            <input type="text" class="memo-input" style="flex:1; margin-right:4px;" placeholder="완료 메모..." value="${escapeHTML(obj.item.archiveMemo || '')}" onfocus="isTyping=true;" onblur="isTyping=false;" onchange="saveArchiveMemo(${obj.idx}, this.value)">
+                            <input type="text" class="memo-input" style="flex:1; margin-right:4px;" placeholder="완료 메모..." value="${escapeHTML(obj.item.archiveMemo || '')}" onclick="event.stopPropagation()" onfocus="isTyping=true;" onblur="isTyping=false;" onchange="saveArchiveMemo(${obj.idx}, this.value)">
                             <div style="display:flex; gap:2px; align-items:center;">
-                                <input type="number" style="width: 32px; font-size: 10px; padding: 2px; border: 1px solid #aaa; border-radius: 3px; text-align: center; margin-right: 4px; background:#fffdf2;" placeholder="순번" title="이동할 번호를 적고 빈 화면을 터치/클릭하세요" onfocus="isTyping=true;" onblur="isTyping=false;" onchange="changeArchiveOrder('${dateKey}', ${obj.idx}, this)" onkeydown="if(event.key==='Enter') { this.blur(); }">
-                                <button class="arc-action-btn" title="위로" onclick="moveArchiveUp(${obj.idx})">🔼</button>
-                                <button class="arc-action-btn" title="아래로" onclick="moveArchiveDown(${obj.idx})">🔽</button>
-                                <button class="arc-action-btn" title="대기열 복구" onclick="restoreItem(${obj.idx})">↩️</button>
-                                <button class="arc-action-btn" style="color:#dc3545;" title="삭제" onclick="deleteArchiveItem(${obj.idx})">❌</button>
+                                <input type="number" style="width: 32px; font-size: 10px; padding: 2px; border: 1px solid #aaa; border-radius: 3px; text-align: center; margin-right: 4px; background:#fffdf2;" placeholder="순번" title="이동할 번호를 적고 빈 화면을 터치/클릭하세요" onclick="event.stopPropagation()" onfocus="isTyping=true;" onblur="isTyping=false;" onchange="changeArchiveOrder('${dateKey}', ${obj.idx}, this)" onkeydown="if(event.key==='Enter') { this.blur(); }">
+                                <button class="arc-action-btn" title="위로" onclick="event.stopPropagation(); moveArchiveUp(${obj.idx})">🔼</button>
+                                <button class="arc-action-btn" title="아래로" onclick="event.stopPropagation(); moveArchiveDown(${obj.idx})">🔽</button>
+                                <button class="arc-action-btn" title="대기열 복구" onclick="event.stopPropagation(); restoreItem(${obj.idx})">↩️</button>
+                                <button class="arc-action-btn" style="color:#dc3545;" title="삭제" onclick="event.stopPropagation(); deleteArchiveItem(${obj.idx})">❌</button>
                             </div>
                         </div>
                     `;
@@ -1001,7 +1063,7 @@
             area.appendChild(fragment); document.getElementById('arcTotalCount').innerText = `총 ${archiveData.length}건`;
         }
 
-        // 마커 렌더링 업데이트 (씨넷 마커 붉은색 분리 + title 속성으로 Hover 접수번호 표시)
+        // 보관함 날짜 필터 시 마커 렌더링 업데이트 (씨넷 마커 붉은색 분리 + title 속성)
         function showArchiveOnMap(dateKey) {
             if (!clusterer) return;
             activeMarkers.forEach(obj => { if (obj.marker) kakao.maps.event.removeListener(obj.marker, 'click', obj.handler); });
@@ -1027,7 +1089,13 @@
                 }
                 
                 mOpts.zIndex = 3;
-                const marker = new kakao.maps.Marker(mOpts); activeMarkers.push({ marker: marker, handler: null }); clusterer.addMarker(marker); bounds.extend(new kakao.maps.LatLng(displayLat, displayLng)); addedCount++;
+                const marker = new kakao.maps.Marker(mOpts); 
+                
+                // 🌟 마커 클릭 시 리스트 하이라이트 이벤트 바인딩
+                const clickHandler = () => { focusOnList(item.asNum); };
+                kakao.maps.event.addListener(marker, 'click', clickHandler);
+                
+                activeMarkers.push({ marker: marker, handler: clickHandler }); clusterer.addMarker(marker); bounds.extend(new kakao.maps.LatLng(displayLat, displayLng)); addedCount++;
             });
             
             if (addedCount > 0) { map.setBounds(bounds); loadRouteFromArchive(dateKey); } else { alert("주소가 매칭되어 지도에 표시할 수 있는 핀이 없습니다. (핀 누락 확인 요망)"); }
@@ -1058,7 +1126,7 @@
             const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert(`[${dateKey}] 내용이 텍스트로 복사되었습니다!\n(카톡이나 밴드에 붙여넣기 하세요)`);
         }
 
-        // 메인 대기열 마커 렌더링 업데이트 (씨넷 마커 붉은색 분리 + title 속성)
+        // 메인 대기열 마커 렌더링 (씨넷 붉은 마커 + 리스트 연동 클릭 이벤트 추가)
         function updateMapMarkers() {
             if (!clusterer) return; activeMarkers.forEach(obj => { if (obj.marker) kakao.maps.event.removeListener(obj.marker, 'click', obj.handler); });
             activeMarkers = []; clusterer.clear(); let addrCounts = {}; const offsetBase = 0.00025; 
@@ -1084,7 +1152,13 @@
                     }
                     
                     const marker = new kakao.maps.Marker(mOpts); marker.customData_isSelected = isSelected;
-                    const clickHandler = () => toggleSelect(type, idx); kakao.maps.event.addListener(marker, 'click', clickHandler);
+                    
+                    // 🌟 마커 클릭 시 : 1. 리스트 아이템 선택/해제  2. 해당 아이템 스크롤 하이라이트 표시
+                    const clickHandler = () => { 
+                        toggleSelect(type, idx); 
+                        focusOnList(item.asNum); 
+                    }; 
+                    kakao.maps.event.addListener(marker, 'click', clickHandler);
                     activeMarkers.push({ marker: marker, handler: clickHandler }); clusterer.addMarker(marker);
                 });
             };
@@ -1133,7 +1207,7 @@
         }
 
         function backupData() {
-            const data = { Todo: savedData, CnetTodo: cnetData, Archive: archiveData, Pending: pendingData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos };
+            const data = { Todo: savedData, CnetTodo: cnetData, Archive: ArchiveData, Pending: pendingData, AddressAlias: addressAlias, FixedAddr: fixedStartAddr, DailyMemos: dailyMemos };
             const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"}); const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, ''); a.download = `YSOL_Backup_${dateStr}.json`; a.click(); URL.revokeObjectURL(url);
         }
