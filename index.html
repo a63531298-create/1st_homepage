@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Y-Solution Mobile v1.9.2</title>
+    <title>Y-Solution Mobile v1.9.3</title>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=2273b382b5ab2a4f5c07dcbbf9b6c507&libraries=services,clusterer&autoload=false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -36,7 +36,7 @@
         .list-item.archive { border-left: 4px solid #6c757d; }
         .as-num { font-size: 13px; font-weight: bold; color: #0056b3; margin-bottom: 4px; display: block; }
         .addr-text { font-size: 14px; font-weight: bold; display: block; margin-bottom: 4px; line-height: 1.3; }
-        .info-text { font-size: 11px; color: #666; margin-bottom: 4px; display: flex; align-items: center; flex-wrap: wrap; }
+        .info-text { font-size: 11px; color: #666; margin-bottom: 4px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
         .content-box { max-height: 65px; overflow-y: auto; font-size: 11px; color: #444; background: #f8f9fa; padding: 8px; border-radius: 6px; border-left: 3px solid #adb5bd; margin-top: 6px; white-space: pre-wrap; line-height: 1.4; }
         .progress-memo { font-size: 11px; font-weight: bold; color: #856404; margin-top: 6px; background: #fff3cd; padding: 8px; border-radius: 6px; border-left: 3px solid #ffeeba; white-space: pre-wrap; line-height: 1.4; }
         .archive-date-header { font-size: 14px; font-weight: bold; color: #111; padding: 10px 12px; background: #e9ecef; border-radius: 6px; margin: 15px 0 10px 0; border-left: 4px solid #6c757d; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
@@ -62,8 +62,9 @@
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #fee500; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .del-alias-btn { color: red; font-weight: bold; padding: 0 5px; cursor: pointer; user-select: none; }
-        .sms-btn { margin-left: 8px; padding: 3px 8px; font-size: 11px; background: #20c997; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: 0.1s; }
+        .sms-btn { margin-left: auto; padding: 4px 10px; font-size: 11px; background: #20c997; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: 0.1s; }
         .sms-btn:active { transform: scale(0.95); background: #17a2b8; }
+        .phone-btn { color:#007bff; text-decoration:none; font-weight:bold; padding:3px 8px; border:1px solid #007bff; border-radius:15px; display:inline-block; margin-top:2px; }
     </style>
 </head>
 <body>
@@ -78,20 +79,7 @@
         </div>
 
         <div id="view-container">
-            <div id="gen-view" class="view-section active">
-                <h3 style="margin:0 0 10px 0; color:#111;">📍 일반 대기열 <span id="genCount" style="float:right; color:#888; font-size:12px;">0건</span></h3>
-                <div id="listGen"></div>
-            </div>
-            <div id="map-view" class="view-section">
-                <div id="map"></div>
-                <button onclick="copyRoute()" style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); z-index:2000; padding:10px 20px; background:#4a90e2; color:white; border:none; border-radius:20px; font-weight:bold; box-shadow:0 4px 10px rgba(0,0,0,0.3); width:60%;">AI 스케줄링 경로 복사</button>
-            </div>
-            <div id="cnet-view" class="view-section">
-                <h3 style="margin:0 0 10px 0; color:#ff4757;">📍 씨넷 대기열 <span id="cnetCount" style="float:right; color:#888; font-size:12px;">0건</span></h3>
-                <div id="listCnet"></div>
-            </div>
-            
-            <div id="archive-view" class="view-section">
+            <div id="archive-view" class="view-section active">
                 <div class="sub-tab-bar">
                     <button class="sub-tab active" data-tab="D-DAY" onclick="switchArchiveTab('D-DAY', this)">오늘(D)</button>
                     <button class="sub-tab" data-tab="D-1" onclick="switchArchiveTab('D-1', this)">내일(D-1)</button>
@@ -100,6 +88,21 @@
                 </div>
                 <h3 style="margin:0 0 10px 0; color:#6c757d;"><span id="archiveTitle">📅 오늘 일정</span> <span id="arcTotalCount" style="float:right; color:#888; font-size:12px;">0건</span></h3>
                 <div id="listArchive"></div>
+            </div>
+
+            <div id="map-view" class="view-section">
+                <div id="map"></div>
+                <button onclick="copyRoute()" style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); z-index:2000; padding:10px 20px; background:#4a90e2; color:white; border:none; border-radius:20px; font-weight:bold; box-shadow:0 4px 10px rgba(0,0,0,0.3); width:60%;">AI 스케줄링 경로 복사</button>
+            </div>
+
+            <div id="gen-view" class="view-section">
+                <h3 style="margin:0 0 10px 0; color:#111;">📍 일반 대기열 <span id="genCount" style="float:right; color:#888; font-size:12px;">0건</span></h3>
+                <div id="listGen"></div>
+            </div>
+
+            <div id="cnet-view" class="view-section">
+                <h3 style="margin:0 0 10px 0; color:#ff4757;">📍 씨넷 대기열 <span id="cnetCount" style="float:right; color:#888; font-size:12px;">0건</span></h3>
+                <div id="listCnet"></div>
             </div>
 
             <div id="settings-view" class="view-section">
@@ -148,10 +151,10 @@
         </div>
 
         <div id="bottom-nav">
-            <button class="nav-btn active" onclick="switchTab('gen-view', this)"><span class="nav-icon">📋</span>일반</button>
+            <button class="nav-btn active" onclick="switchTab('archive-view', this)"><span class="nav-icon">📦</span>일정</button>
             <button class="nav-btn" onclick="switchTab('map-view', this)"><span class="nav-icon">📍</span>지도맵</button>
+            <button class="nav-btn" onclick="switchTab('gen-view', this)"><span class="nav-icon">📋</span>일반</button>
             <button class="nav-btn" onclick="switchTab('cnet-view', this)"><span class="nav-icon">🌑</span>씨넷</button>
-            <button class="nav-btn" onclick="switchTab('archive-view', this)"><span class="nav-icon">📦</span>일정</button>
             <button class="nav-btn" onclick="switchTab('settings-view', this)"><span class="nav-icon">⚙️</span>설정</button>
         </div>
     </div>
@@ -215,7 +218,7 @@
 
     <script>
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyHJfnkVmPkKydAgXIRvYQKhckl5nOr_h6wIXcxLba9PnyRfa1BhTXViD0jWDPxSkwYsw/exec";
-        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.9.2' };
+        const APP_CONFIG = { PREFIX: 'YSOL_v1_', VERSION: '1.9.3' };
 
         const StorageManager = {
             getKey: (key) => APP_CONFIG.PREFIX + key,
@@ -311,9 +314,16 @@
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
             btnEl.classList.add('active');
+            
             const fab = document.getElementById('fabBtn');
-            if (viewId === 'gen-view' || viewId === 'cnet-view') { fab.style.display = 'flex'; }
-            else { fab.style.display = 'none'; document.getElementById('fabMenu').style.display = 'none'; }
+            // 모바일에서 입력/추가 버튼은 일반, 씨넷, 일정 탭에서만 활성화
+            if (viewId === 'gen-view' || viewId === 'cnet-view' || viewId === 'archive-view') { 
+                fab.style.display = 'flex'; 
+            } else { 
+                fab.style.display = 'none'; 
+                document.getElementById('fabMenu').style.display = 'none'; 
+            }
+            
             if (viewId === 'map-view' && map) {
                 setTimeout(() => {
                     map.relayout(); updateMapMarkers();
@@ -378,11 +388,28 @@
         function sendParkingSms(tel, event) {
             if(event) event.stopPropagation();
             if(!tel) return alert("유효한 전화번호가 없습니다.");
-            let cleanNumber = String(tel).replace(/[^0-9]/g, '');
+            // 첫번째 번호로 주차 문자 발송
+            let firstTel = String(tel).split(/[/,]/)[0];
+            let cleanNumber = firstTel.replace(/[^0-9]/g, '');
             if(!smsTemplate) return alert("설정 탭에서 고정 메세지 템플릿을 먼저 작성해주세요.");
             let encodedMsg = encodeURIComponent(smsTemplate);
             let separator = /iPad|iPhone|iPod/.test(navigator.userAgent) ? '&' : '?';
             window.location.href = `sms:${cleanNumber}${separator}body=${encodedMsg}`;
+        }
+
+        // 🌟 v1.9.3: 전화번호 다중 인식 및 분할 처리 로직
+        function generatePhoneLinks(telString) {
+            if (!telString) return '📞 없음';
+            let html = '';
+            // 슬래시나 쉼표를 기준으로 전화번호 분할
+            let phones = String(telString).split(/[/,]/);
+            phones.forEach(p => {
+                let cleanP = p.trim();
+                if(cleanP) {
+                    html += `<a href="tel:${escapeHTML(cleanP)}" class="phone-btn" onclick="event.stopPropagation()">📞 ${escapeHTML(cleanP)}</a>`;
+                }
+            });
+            return html;
         }
 
         function renderViews() {
@@ -398,7 +425,9 @@
                     if (!item) return;
                     if (kw && !(item.addr||'').toLowerCase().includes(kw) && !(item.asNum||'').toLowerCase().includes(kw) && !(item.tel||'').includes(kw) && !(item.modelName||'').toLowerCase().includes(kw)) return;
                     let cssClass  = type === 'general' ? 'general' : 'cnet';
-                    let phoneLink = item.tel ? `<a href="tel:${escapeHTML(item.tel)}" style="color:#007bff; text-decoration:none; font-weight:bold; padding:2px;" onclick="event.stopPropagation()">📞 ${escapeHTML(item.tel)}</a>` : '📞 없음';
+                    
+                    let phoneHtml = generatePhoneLinks(item.tel);
+                    
                     let contentHtml = `<div class="content-box">📄 증상: ${escapeHTML(item.content || '내용 없음')}</div>`;
                     let memoHtml    = item.memo ? `<div class="progress-memo">💡 [진행 메모] ${escapeHTML(item.memo)}</div>` : '';
                     let pinWarning  = !item.lat ? `<span style="background:#dc3545; color:white; font-size:10px; padding:2px 4px; border-radius:4px; margin-left:4px;">⚠️핀누락</span>` : '';
@@ -418,8 +447,9 @@
                         <div class="list-item ${cssClass}" data-idx="${idx}" data-type="${type}" data-asnum="${escapeHTML(item.asNum)}">
                             <span class="as-num">${type==='cnet'?'[씨넷]':'[일반]'} ${escapeHTML(item.asNum)} ${pinWarning} ${dDayHtml}</span>
                             <span class="addr-text tmap-link" data-idx="${idx}" data-type="${type}" style="color:#0056b3; cursor:pointer;">🧭 ${escapeHTML(item.addr)} <span style="font-size:10px; font-weight:normal; text-decoration:underline; color:#666;">(티맵)</span></span>
-                            <div class="info-text">👤 ${escapeHTML(item.name)} | ${phoneLink}</div>
-                            <div class="info-text" style="color:#444;">${costBadge}🏷️ ${escapeHTML(item.modelName)}</div>
+                            <div class="info-text">👤 ${escapeHTML(item.name)}</div>
+                            <div class="info-text">${phoneHtml}</div>
+                            <div class="info-text" style="color:#444; margin-top:4px;">${costBadge}🏷️ ${escapeHTML(item.modelName)}</div>
                             ${contentHtml}${memoHtml}
                         </div>`;
                 });
@@ -474,21 +504,22 @@
             } else {
                 filteredItems.slice().reverse().forEach(obj => {
                     let item = obj.item;
-                    let phoneLink = item.tel ? `<a href="tel:${escapeHTML(item.tel)}" style="color:#007bff; text-decoration:none; font-weight:bold; padding:2px;" onclick="event.stopPropagation()">📞 ${escapeHTML(item.tel)}</a>` : '📞 없음';
+                    let phoneHtml = generatePhoneLinks(item.tel);
+                    
                     let smsBtn = item.tel ? `<button class="sms-btn" onclick="sendParkingSms('${escapeHTML(item.tel)}', event)">🅿️ 주차등록</button>` : '';
                     let contentHtml = `<div class="content-box">📄 증상: ${escapeHTML(item.content || '내용 없음')}</div>`;
                     let memoHtml    = item.archiveMemo ? `<div class="progress-memo" style="border-left-color:#ff4757; background:#fff0f0; color:#d63031;">📝 [메모] ${escapeHTML(item.archiveMemo)}</div>` : '';
                     let srcTag = item.source === 'cnet' ? '<span style="color:#ff4757;">[씨넷]</span>' : '<span style="color:#0056b3;">[일반]</span>';
                     
-                    // 🌟 일정 탭 유무상 뱃지 복구 적용 완료
                     let costBadge = item.costType ? `<span style="font-weight:bold; color:${item.costType.includes('무상') ? '#28a745' : '#dc3545'};">[${escapeHTML(item.costType)}]</span> ` : '';
                     
                     html += `
                         <div class="list-item archive" data-idx="${obj.idx}" data-type="archive" data-asnum="${escapeHTML(item.asNum)}">
                             <span class="as-num">${srcTag} ${escapeHTML(item.asNum)} <span style="float:right; color:#999; font-size:10px;">${escapeHTML(item.completedDate)}</span></span>
                             <span class="addr-text tmap-link" data-idx="${obj.idx}" data-type="archive" style="color:#0056b3; cursor:pointer;">🧭 ${escapeHTML(item.addr)}</span>
-                            <div class="info-text">👤 ${escapeHTML(item.name)} | ${phoneLink} ${smsBtn}</div>
-                            <div class="info-text" style="color:#444;">${costBadge}🏷️ ${escapeHTML(item.modelName)}</div>
+                            <div class="info-text">👤 ${escapeHTML(item.name)} ${smsBtn}</div>
+                            <div class="info-text">${phoneHtml}</div>
+                            <div class="info-text" style="color:#444; margin-top:4px;">${costBadge}🏷️ ${escapeHTML(item.modelName)}</div>
                             ${contentHtml}${memoHtml}
                         </div>`;
                 });
@@ -548,6 +579,7 @@
             item.completedDate = new Date(targetDate.getTime() - offset).toISOString().split('T')[0];
             item.source = type; item.archiveMemo = memo;
             archiveData.push(item); closeActionSheet(); save(); renderViews();
+            updateMapMarkers();
         }
 
         function moveItem(dayType) {
@@ -561,6 +593,7 @@
             item.completedDate = new Date(targetDate.getTime() - offset).toISOString().split('T')[0];
             item.source = type;
             archiveData.push(item); closeActionSheet(); save(); renderViews();
+            updateMapMarkers();
         }
 
         function deleteItem() {
@@ -571,6 +604,7 @@
             else if (type === 'cnet') cnetData.splice(idx, 1);
             else archiveData.splice(idx, 1);
             closeActionSheet(); save(); renderViews();
+            updateMapMarkers();
         }
 
         function openManualModal(type = 'general', idx = -1) {
@@ -599,7 +633,10 @@
             let addr = document.getElementById('mAddr').value.trim();
             if (!addr) return alert("주소는 필수 입력 사항입니다.");
             let telRaw = document.getElementById('mTel').value.trim();
-            let telFormat = telRaw.replace(/[^0-9]/g,'').length === 11 ? telRaw.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3') : telRaw;
+            let telFormat = telRaw.replace(/[^0-9/]/g,''); // 숫자와 슬래시만 남기기
+            if(telFormat.length === 11 && !telFormat.includes('/')) {
+                telFormat = telFormat.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+            }
             let info = {
                 source: type, addr, searchTarget: addr, date: document.getElementById('mDate').value,
                 asNum: document.getElementById('mAsNum').value.trim() || 'MANUAL-' + Date.now().toString().slice(-6),
@@ -645,7 +682,7 @@
                 if (!this.isProcessing) this.processNext();
             },
             processNext: function() {
-                if (this.queue.length === 0) { this.isProcessing = false; renderViews(); return; }
+                if (this.queue.length === 0) { this.isProcessing = false; renderViews(); updateMapMarkers(); return; }
                 this.isProcessing = true;
                 const task = this.queue.shift();
                 if (!geocoder) {
@@ -695,7 +732,7 @@
         }
         function changeFixedAddr() {
             let newAddr = document.getElementById('fixedAddrInput').value.trim();
-            if (newAddr) { fixedStartAddr = newAddr; save(); alert("거점이 저장되었습니다."); }
+            if (newAddr) { fixedStartAddr = newAddr; save(); alert("거점이 저장되었습니다."); drawFixedAddr(fixedStartAddr); }
         }
         function renderAliasList() {
             const area = document.getElementById('aliasListArea');
@@ -726,16 +763,25 @@
             if (!fixedStartAddr) return alert("거점 설정 필요");
             let route = `[출발] ${fixedStartAddr}\n`, seq = 1;
             const addrGroups = {};
-            [...savedData, ...cnetData].forEach(item => {
+            
+            let todayObj = new Date(); let offset = todayObj.getTimezoneOffset() * 60000;
+            let todayStr = new Date(todayObj.getTime() - offset).toISOString().split('T')[0];
+            let todaysArchive = archiveData.filter(d => (d.completedDate || '') === todayStr);
+            
+            [...savedData, ...cnetData, ...todaysArchive].forEach(item => {
                 if (!item) return;
                 const key = item.searchAddr || item.addr;
-                if (!addrGroups[key]) addrGroups[key] = { gen: 0, cnet: 0 };
-                item.source === 'cnet' ? addrGroups[key].cnet++ : addrGroups[key].gen++;
+                if (!addrGroups[key]) addrGroups[key] = { gen: 0, cnet: 0, archive: 0 };
+                if(item.source === 'cnet') addrGroups[key].cnet++;
+                else if(item.source === 'general') addrGroups[key].gen++;
+                else addrGroups[key].archive++;
             });
+            
             for (const [key, counts] of Object.entries(addrGroups)) {
                 let badge = [];
                 if (counts.gen > 0) badge.push(`일반${counts.gen}`);
                 if (counts.cnet > 0) badge.push(`씨넷${counts.cnet}`);
+                if (counts.archive > 0) badge.push(`완료${counts.archive}`);
                 route += `${seq}. ${key} (${badge.join(',')})\n`; seq++;
             }
             route += `[도착] ${fixedStartAddr}`;
@@ -749,14 +795,14 @@
             const fmtData = (arr) => arr.map(i => ({ '접수번호':i.asNum,'주소':i.addr,'고객명':i.name,'연락처':i.tel,'모델명':i.modelName,'비용구분':i.costType,'증상':i.content,'메모':i.memo||'' }));
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fmtData(savedData)), "일반");
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fmtData(cnetData)), "씨넷");
-            XLSX.writeFile(wb, `YSOL_v1.9.2_Backup.xlsx`);
+            XLSX.writeFile(wb, `YSOL_v1.9.3_Backup.xlsx`);
         }
 
         function backupData() {
             const data = { Todo:savedData, CnetTodo:cnetData, Archive:archiveData, AddressAlias:addressAlias, FixedAddr:fixedStartAddr, DailyMemos:dailyMemos, SmsTemplate:smsTemplate };
             const blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href=url; a.download=`YSOL_v1.9.2_Backup.json`; a.click();
+            const a = document.createElement('a'); a.href=url; a.download=`YSOL_v1.9.3_Backup.json`; a.click();
         }
 
         function restoreData(event) {
@@ -780,22 +826,73 @@
                 map = new kakao.maps.Map(document.getElementById('map'), { center: new kakao.maps.LatLng(37.145, 127.067), level: 8 });
                 clusterer = new kakao.maps.MarkerClusterer({ map, averageCenter: true, minLevel: 5 });
                 geocoder = new kakao.maps.services.Geocoder();
+                
+                // 🌟 고정 거점 표시 호출 추가
+                if(fixedStartAddr) drawFixedAddr(fixedStartAddr);
                 updateMapMarkers();
             });
         }
+        
+        function drawFixedAddr(addr) {
+            if(!geocoder) return;
+            geocoder.addressSearch(addr, (res, stat) => {
+                if (stat === 'OK') {
+                    if (fixedMarker) fixedMarker.setMap(null); 
+                    var content = '<div style="background:#343a40; color:#fee500; padding:4px 8px; border-radius:15px; font-weight:bold; font-size:11px; box-shadow:0 3px 6px rgba(0,0,0,0.4); border:2px solid #fee500; position:relative; top:-15px; white-space:nowrap;">🏠 거점(출발/도착)</div>';
+                    fixedMarker = new kakao.maps.CustomOverlay({
+                        position: new kakao.maps.LatLng(res[0].y, res[0].x),
+                        content: content,
+                        map: map,
+                        zIndex: 10
+                    });
+                    map.setCenter(new kakao.maps.LatLng(res[0].y, res[0].x));
+                }
+            });
+        }
 
+        // 🌟 v1.9.3: 모바일용 지도 마커 시각적 구분 및 클릭 액션 이벤트 통합
         function updateMapMarkers() {
             if (!clusterer) return;
             activeMarkers.forEach(obj => { if (obj.marker) obj.marker.setMap(null); });
             activeMarkers = []; clusterer.clear();
-            const processMarkers = (dataArr) => {
-                dataArr.forEach(item => {
+
+            const processMarkers = (dataArr, type) => {
+                dataArr.forEach((item, idx) => {
                     if (!item || !item.lat || !item.lng) return;
-                    const marker = new kakao.maps.Marker({ position: new kakao.maps.LatLng(item.lat, item.lng) });
+                    let mOpts = { position: new kakao.maps.LatLng(item.lat, item.lng), title: item.asNum };
+                    
+                    if (type === 'cnet') {
+                        mOpts.image = new kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png', new kakao.maps.Size(24, 35));
+                    } else if (type === 'general') {
+                        mOpts.image = new kakao.maps.MarkerImage('https://t1.daumcdn.net/mapjsapi/images/marker.png', new kakao.maps.Size(24, 35));
+                    } else if (type === 'archive') {
+                        mOpts.image = new kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png', new kakao.maps.Size(24, 35));
+                    }
+                    
+                    const marker = new kakao.maps.Marker(mOpts);
+                    kakao.maps.event.addListener(marker, 'click', () => {
+                        openActionSheet(type, idx, item.asNum);
+                    });
                     activeMarkers.push({ marker }); clusterer.addMarker(marker);
                 });
             };
-            processMarkers(savedData); processMarkers(cnetData);
+            
+            processMarkers(savedData, 'general');
+            processMarkers(cnetData, 'cnet');
+            
+            // 오늘 날짜의 완료 건(일정)도 지도에 표시
+            let todayObj = new Date(); let offset = todayObj.getTimezoneOffset() * 60000;
+            let todayStr = new Date(todayObj.getTime() - offset).toISOString().split('T')[0];
+            archiveData.forEach((item, idx) => {
+                if(item && (item.completedDate || '') === todayStr) {
+                    if (!item.lat || !item.lng) return;
+                    let mOpts = { position: new kakao.maps.LatLng(item.lat, item.lng), title: item.asNum };
+                    mOpts.image = new kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png', new kakao.maps.Size(24, 35));
+                    const marker = new kakao.maps.Marker(mOpts);
+                    kakao.maps.event.addListener(marker, 'click', () => { openActionSheet('archive', idx, item.asNum); });
+                    activeMarkers.push({ marker }); clusterer.addMarker(marker);
+                }
+            });
         }
 
         window.onload = () => { fetchFromCloud(); };
